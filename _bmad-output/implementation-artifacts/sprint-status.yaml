@@ -1,0 +1,107 @@
+# generated: 2026-06-15
+# last_updated: 2026-06-15 (story 1.1 in review; epic-1 in-progress)
+# project: Clarifi
+# project_key: NOKEY
+# tracking_system: file-system
+# story_location: {project-root}/_bmad-output/implementation-artifacts
+
+# STATUS DEFINITIONS:
+# ==================
+# Epic Status:
+#   - backlog: Epic not yet started
+#   - in-progress: Epic actively being worked on
+#   - done: All stories in epic completed
+#
+# Epic Status Transitions:
+#   - backlog -> in-progress: Automatically when first story is created (via create-story)
+#   - in-progress -> done: Manually when all stories reach 'done' status
+#
+# Story Status:
+#   - backlog: Story only exists in epic file
+#   - ready-for-dev: Story file created in stories folder
+#   - in-progress: Developer actively working on implementation
+#   - review: Ready for code review (via Dev's code-review workflow)
+#   - done: Story completed
+#
+# Retrospective Status:
+#   - optional: Can be completed but not required
+#   - done: Retrospective has been completed
+#
+# WORKFLOW NOTES:
+# ===============
+# - Epic transitions to 'in-progress' automatically when first story is created
+# - Stories can be worked in parallel if team capacity allows
+# - Developer typically creates next story after previous one is 'done' to incorporate learnings
+# - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
+
+generated: 2026-06-15
+last_updated: 2026-06-15 (story 1.1 code-reviewed; all 7 patches applied, status done)
+project: Clarifi
+project_key: NOKEY
+tracking_system: file-system
+story_location: "{project-root}/_bmad-output/implementation-artifacts"
+
+development_status:
+  # Epic 1: Foundation & Auth
+  epic-1: in-progress
+  1-1-persistence-foundation-rls-enablement: done
+  1-2-user-registration-with-email-pipeda-consent: backlog
+  1-3-user-login-with-jwt-and-refresh-rotation: backlog
+  1-4-csv-statement-upload-canonical-parsing: backlog
+  1-5-idempotent-ingestion-duplicate-detection: backlog
+  1-6-account-data-deletion-pipeda: backlog
+  epic-1-retrospective: optional
+
+  # Epic 2: Smart Categorization
+  epic-2: backlog
+  2-1-llm-categorization-pipeline: backlog
+  2-2-merchant-normalization-cache: backlog
+  2-3-category-override-correction-learning: backlog
+  2-4-llm-as-judge-validation: backlog
+  epic-2-retrospective: optional
+
+  # Epic 3: Spending Dashboard
+  epic-3: backlog
+  3-1-monthly-category-breakdown: backlog
+  3-2-spending-trend-over-time: backlog
+  3-3-top-merchants-income-vs-expenses-month-over-month: backlog
+  3-4-per-category-budgets-progress: backlog
+  epic-3-retrospective: optional
+
+  # Epic 4: Plaid & Reliable Ingestion
+  epic-4: backlog
+  4-1-plaid-link-connection-token-encryption: backlog
+  4-2-webhook-ingestion-with-outbox-cursor-sync: backlog
+  4-3-transaction-lifecycle-pending-to-posted-to-removed: backlog
+  epic-4-retrospective: optional
+
+  # Epic 5: Anomaly Detection
+  epic-5: backlog
+  5-1-robust-stats-engine-baselines: backlog
+  5-2-velocity-merchant-anomaly-detection: backlog
+  5-3-synchronous-detection-severity-scoring: backlog
+  5-4-async-plain-english-explanations: backlog
+  5-5-anomaly-feed-feedback-loop: backlog
+  epic-5-retrospective: optional
+
+  # Epic 6: Natural Language Query
+  epic-6: backlog
+  6-1-nl-to-ir-generation: backlog
+  6-2-ir-to-parameterized-sql-with-safety: backlog
+  6-3-query-chat-ui-with-answer-chart-and-interpretation: backlog
+  epic-6-retrospective: optional
+
+  # Epic 7: FDX & Open Banking
+  epic-7: backlog
+  7-1-fdx-mock-resources-adapter: backlog
+  7-2-oauth2-consent-flow: backlog
+  7-3-consent-dashboard: backlog
+  epic-7-retrospective: optional
+
+  # Epic 8: Notifications, Observability & Polish
+  epic-8: backlog
+  8-1-in-app-anomaly-notifications: backlog
+  8-2-budget-alerts-at-80-and-100: backlog
+  8-3-weekly-email-digest: backlog
+  8-4-observability-ci: backlog
+  epic-8-retrospective: optional

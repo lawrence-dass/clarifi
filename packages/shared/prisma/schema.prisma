@@ -1,0 +1,237 @@
+// Clarifi data model — v1.1
+// Encodes the settled architecture guardrails. See CLAUDE.md before changing.
+//
+// MONEY: every monetary field is integer cents (BigInt), never a float.
+//        Amounts are signed from the user's perspective: outflow negative, inflow positive.
+// TENANCY: userId is denormalized onto every user-scoped table so Postgres RLS
+//          policies are trivial and fast. RLS is enabled via a raw-SQL migration
+//          (Prisma does not manage RLS) — see prisma/migrations/*_enable_rls.
+// IDEMPOTENCY: Transaction is unique on (accountId, providerTransactionId).
+
+generator client {
+  // Prisma 7 generator (Rust-free). Output path is mandatory.
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  // Prisma 7: connection URLs live in prisma.config.ts, not here.
+  provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum Provider {
+  plaid
+  csv
+  fdx
+}
+
+enum AccountType {
+  checking
+  savings
+  credit_card
+  other
+}
+
+enum TransactionStatus {
+  pending
+  posted
+  removed
+}
+
+enum TransactionDirection {
+  debit // money leaving the account (amountCents negative)
+  credit // money entering the account (amountCents positive)
+}
+
+enum Category {
+  food_and_dining
+  transport
+  housing
+  utilities
+  shopping
+  entertainment
+  health
+  travel
+  income
+  transfers
+  other
+}
+
+// How a transaction's category was set. A `user` override always wins and seeds
+// the merchant cache. Required to build the correction-learning loop / LLM-as-judge.
+enum CategorySource {
+  llm
+  user
+  rule
+  merchant_cache
+}
+
+enum AnomalyType {
+  velocity
+  merchant
+  amount
+}
+
+// Severity tiers — only `critical` triggers a push notification (precision over recall).
+enum AnomalySeverity {
+  info
+  warning
+  critical
+}
+
+enum ConsentStatus {
+  granted
+  revoked
+}
+
+// ---------------------------------------------------------------------------
+// Models
+// ---------------------------------------------------------------------------
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  // PIPEDA: explicit consent captured at signup.
+  consentedAt  DateTime @map("consented_at")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  accounts     Account[]
+  transactions Transaction[]
+  budgets      Budget[]
+  anomalies    Anomaly[]
+  consents     Consent[]
+
+  @@map("users")
+}
+
+model Account {
+  id                String      @id @default(uuid())
+  userId            String      @map("user_id")
+  provider          Provider
+  providerAccountId String      @map("provider_account_id")
+  institutionName   String      @map("institution_name")
+  accountType       AccountType @map("account_type")
+  balanceCents      BigInt      @map("balance_cents") // integer cents, signed
+  currency          String      @db.Char(3) // ISO 4217, e.g. "CAD"
+  createdAt         DateTime    @default(now()) @map("created_at")
+  updatedAt         DateTime    @updatedAt @map("updated_at")
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+  @@map("accounts")
+}
+
+model Transaction {
+  id        String @id @default(uuid())
+  accountId String @map("account_id")
+  userId    String @map("user_id") // denormalized for RLS
+
+  provider              Provider
+  providerTransactionId String   @map("provider_transaction_id")
+
+  date           DateTime
+  amountCents    BigInt               @map("amount_cents") // signed integer cents (outflow < 0)
+  direction      TransactionDirection // derived from sign at ingestion
+  currency       String               @db.Char(3)
+  merchantName   String?              @map("merchant_name") // normalized, e.g. "Tim Hortons"
+  rawDescription String               @map("raw_description")
+
+  category          Category?
+  categorySource    CategorySource? @map("category_source")
+  categoryConfidence Float?         @map("category_confidence")
+  categorizedAt     DateTime?       @map("categorized_at")
+
+  // Lifecycle: transactions are mutable (pending -> posted, or removed).
+  status               TransactionStatus  @default(posted)
+  pendingTransactionId String?            @map("pending_transaction_id")
+
+  isAnomaly Boolean  @default(false) @map("is_anomaly")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  account   Account   @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  anomalies Anomaly[]
+
+  // Idempotency key: at-least-once delivery + unique upsert = exactly-once effect.
+  @@unique([accountId, providerTransactionId])
+  @@index([userId, date])
+  @@index([userId, category])
+  @@index([accountId, merchantName])
+  @@map("transactions")
+}
+
+model Budget {
+  id               String   @id @default(uuid())
+  userId           String   @map("user_id")
+  category         Category
+  monthlyLimitCents BigInt  @map("monthly_limit_cents") // integer cents
+  month            String   @db.Char(7) // "YYYY-MM"
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, category, month])
+  @@index([userId])
+  @@map("budgets")
+}
+
+model Anomaly {
+  id            String          @id @default(uuid())
+  transactionId String          @map("transaction_id")
+  userId        String          @map("user_id") // denormalized for RLS
+  type          AnomalyType
+  severity      AnomalySeverity
+  explanation   String? // LLM-generated, async; null until generated (templated fallback in app)
+  dismissed     Boolean         @default(false)
+  reportedSuspicious Boolean    @default(false) @map("reported_suspicious")
+  createdAt     DateTime        @default(now()) @map("created_at")
+
+  transaction Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, dismissed])
+  @@index([transactionId])
+  @@map("anomalies")
+}
+
+// Backs the FDX OAuth2 consent lifecycle and the consent dashboard.
+model Consent {
+  id        String        @id @default(uuid())
+  userId    String        @map("user_id")
+  provider  Provider
+  scopes    String[] // granted data scopes, e.g. ["accounts:read", "transactions:read"]
+  status    ConsentStatus @default(granted)
+  grantedAt DateTime      @map("granted_at")
+  revokedAt DateTime?     @map("revoked_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status])
+  @@map("consents")
+}
+
+// Outbox pattern for reliable webhook/event processing. System-level (no RLS;
+// accessed only by the service role / workers).
+model Outbox {
+  id          String   @id @default(uuid())
+  eventType   String   @map("event_type")
+  payload     Json
+  processed   Boolean  @default(false)
+  processedAt DateTime? @map("processed_at")
+  attempts    Int      @default(0)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([processed, createdAt])
+  @@map("outbox")
+}
