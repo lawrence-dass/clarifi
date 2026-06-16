@@ -83,6 +83,43 @@ These are settled. Do not reintroduce the anti-patterns they replace.
 - Tests accompany business logic — especially the stats engine, money math, and the SQL AST validator (these are the high-risk, high-interview-value units).
 - **Git commits:** do NOT add any Claude/AI attribution to commit messages — no `Co-Authored-By: Claude`, no "Generated with Claude Code" trailer, no mention of Claude or AI tooling. Write commit messages as the human author.
 
+## Risk-tiered execution (lean BMAD)
+
+Scale effort by risk instead of running max-effort every story. Classify the story at
+creation time, record `risk_tier: 1|2|3` in its frontmatter, and work to that tier.
+
+- **Tier 1 (low):** isolated, reversible, fully covered by existing patterns (copy/docs,
+  presentational UI). Read the story + directly-affected files. Implement, targeted
+  tests + typecheck, one focused review, done.
+- **Tier 2 (default):** backend or cross-file changes that don't touch a guardrail. Add
+  the relevant architecture shard. Implement, targeted tests + typecheck, one adversarial
+  review, then package-level tests if shared behaviour changed.
+- **Tier 3 (high):** full context, multi-angle review, full relevant test suite.
+
+**Escalation is guardrail-driven, not surface-type.** Escalate to Tier 3 whenever the
+work touches any of the 19 guardrails above — money math / `_cents`, sign normalization,
+RLS / `withUserContext`, the `(account_id, provider_transaction_id)` idempotency key,
+LLM egress (`lib/llm-gateway`, `lib/anonymize`), NL→IR→SQL, anomaly stats, FDX adapters,
+PIPEDA/deletion, or Prisma migrations/schema. When uncertain, default to Tier 2;
+escalate if risk surfaces mid-implementation.
+
+**Guardrail tripwire (overrides the tier):** before marking any story done, regardless of
+its assigned tier, run `git diff --name-only` and if the diff touches money/`_cents`,
+ingestion sign normalization, `withUserContext`/RLS policies, idempotency upsert keys,
+the LLM gateway/anonymizer, `prisma/migrations`, or outbox/webhook/cursor code → it gets
+the full Tier-3 review. This converts tier misclassification into a mechanical safety net.
+
+**Context discipline (all tiers):** read the story + directly-affected files; search then
+open; load architecture/epics by the specific shard, not the whole document; don't reload
+generated files or historical story files unless the current story depends on them.
+
+**Full-test checkpoint:** run the full relevant suite before marking an epic done, even if
+individual stories economized.
+
+**Session continuity:** use `/session-end` at ~60% context or story completion and
+`/session-start` in a fresh window so lean context never costs accuracy
+(`_bmad/handoff/`, `_bmad-output/CURRENT.md`, `_bmad-output/project-context.md`).
+
 ## Commands
 
 Run `nvm use` first (Node 22). Then:

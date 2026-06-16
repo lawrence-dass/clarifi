@@ -31,3 +31,6 @@ pnpm-debug.log*
 
 # Test / coverage
 coverage/
+
+# Session handoff: track logic + live CURRENT.md, ignore ephemeral timestamped copies
+_bmad-output/handoff/
