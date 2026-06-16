@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { Category } from "@clarifi/shared";
-import { buildCategorizationPrompt, categorizeBatch, maxTokensForBatch } from "./llm-gateway.js";
+import {
+  buildCategorizationPrompt,
+  buildJudgePrompt,
+  categorizeBatch,
+  judgeCategorizations,
+  maxTokensForBatch,
+} from "./llm-gateway.js";
 
 describe("llm-gateway", () => {
   it("maps valid structured output", async () => {
@@ -102,5 +108,86 @@ describe("llm-gateway", () => {
   it("scales token budget with batch size", () => {
     expect(maxTokensForBatch(1)).toBe(1_000);
     expect(maxTokensForBatch(100)).toBeGreaterThanOrEqual(6_000);
+  });
+
+  it("maps judge verdicts back from aliases", async () => {
+    const client = {
+      messages: {
+        parse: async () => ({
+          parsed_output: {
+            results: [
+              { id: "item_1", agree: false, suggestedCategory: Category.shopping, confidence: 0.74 },
+            ],
+          },
+        }),
+      },
+    };
+
+    await expect(
+      judgeCategorizations([
+        {
+          id: "tx1",
+          description: "COFFEE SHOP",
+          proposedCategory: Category.food_and_dining,
+        },
+      ], client),
+    ).resolves.toEqual([
+      {
+        id: "tx1",
+        agree: false,
+        suggestedCategory: Category.shopping,
+        confidence: 0.74,
+      },
+    ]);
+  });
+
+  it("sends only anonymized descriptions and aliases to the judge", () => {
+    const prompt = buildJudgePrompt([
+      {
+        id: "internal-tx-1",
+        description: "CARD 4111 1111 1111 1111 JANE DOE",
+        holderName: "Jane Doe",
+        proposedCategory: Category.shopping,
+      },
+    ]);
+
+    expect(prompt).toContain("item_1");
+    expect(prompt).toContain("[ACCOUNT]");
+    expect(prompt).toContain("[NAME]");
+    expect(prompt).toContain(Category.shopping);
+    expect(prompt).not.toContain("internal-tx-1");
+    expect(prompt).not.toContain("4111 1111 1111 1111");
+    expect(prompt).not.toContain("JANE DOE");
+  });
+
+  it("rejects missing or duplicate judge results", async () => {
+    const missingClient = {
+      messages: {
+        parse: async () => ({
+          parsed_output: {
+            results: [{ id: "item_1", agree: true, confidence: 0.8 }],
+          },
+        }),
+      },
+    };
+    const duplicateClient = {
+      messages: {
+        parse: async () => ({
+          parsed_output: {
+            results: [
+              { id: "item_1", agree: true, confidence: 0.8 },
+              { id: "item_1", agree: false, suggestedCategory: Category.other, confidence: 0.8 },
+            ],
+          },
+        }),
+      },
+    };
+
+    const inputs = [
+      { id: "tx1", description: "COFFEE", proposedCategory: Category.food_and_dining },
+      { id: "tx2", description: "GROCERY", proposedCategory: Category.shopping },
+    ];
+    await expect(judgeCategorizations(inputs, missingClient)).rejects.toThrow(/result count/i);
+    await expect(judgeCategorizations(inputs, duplicateClient)).rejects.toThrow(/duplicate/i);
   });
 });

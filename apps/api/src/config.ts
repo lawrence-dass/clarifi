@@ -20,6 +20,20 @@ const EnvSchema = z.object({
     .transform((value) => (value && value.length > 0 ? value : undefined)),
   CATEGORIZATION_MODEL: z.string().min(1).default("claude-haiku-4-5"),
   CATEGORIZE_BATCH_SIZE: z.coerce.number().int().positive().max(100).default(25),
+  // Optional second-pass judge. Kept off by default so cost/latency stay unchanged
+  // unless explicitly enabled.
+  CATEGORIZE_JUDGE_ENABLED: z
+    .preprocess((value) => value === true || String(value).toLowerCase() === "true" || value === "1", z.boolean())
+    .default(false),
+  // Results below this confidence are treated as low quality and are not trusted
+  // or seeded into the merchant cache.
+  CATEGORIZE_JUDGE_MIN_CONFIDENCE: z.coerce.number().min(0).max(1).default(0.5),
+  // When the judge is enabled, only results below this ceiling get the extra
+  // LLM check; high-confidence results avoid the additional cost.
+  CATEGORIZE_JUDGE_REVIEW_CEILING: z.coerce.number().min(0).max(1).default(0.8),
+  // Separate knob for judge model choice, defaulting to the categorization model
+  // family used elsewhere for low-cost classification.
+  CATEGORIZE_JUDGE_MODEL: z.string().min(1).default("claude-haiku-4-5"),
   // Token lifetimes. Validated to the exact grammar durationToSeconds accepts
   // (positive integer + s/m/h/d) so a value only one parser would accept can't
   // reach runtime and crash login. There is no separate JWT_REFRESH_SECRET:

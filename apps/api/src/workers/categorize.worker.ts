@@ -5,12 +5,24 @@ import {
   withUserContext,
 } from "@clarifi/shared";
 import { config } from "../config.js";
-import { categorizeBatch, type CategorizeResult } from "../lib/llm-gateway.js";
+import {
+  categorizeBatch,
+  judgeCategorizations,
+  type CategorizeResult,
+  type JudgeVerdict,
+} from "../lib/llm-gateway.js";
 import {
   redisMerchantCategoryCache,
   type CachedMerchantCategory,
   type MerchantCategoryCache,
 } from "../modules/categorization/merchant-cache.js";
+import {
+  applyJudgeVerdicts,
+  selectResultsForJudge,
+  validateCategorizationResult,
+  type JudgeDisagreementLog,
+  type JudgeFlagLog,
+} from "../modules/categorization/categorization-judge.js";
 import { normalizeMerchantName } from "../modules/categorization/merchant-normalizer.js";
 import {
   CATEGORIZE_QUEUE_NAME,
@@ -22,17 +34,26 @@ export interface CategorizationGateway {
   categorizeBatch(items: { id: string; description: string; holderName?: string | null }[]): Promise<CategorizeResult[]>;
 }
 
+export interface CategorizationJudge {
+  judgeCategorizations(
+    items: { id: string; description: string; holderName?: string | null; proposedCategory: Category }[],
+  ): Promise<JudgeVerdict[]>;
+}
+
 const defaultGateway: CategorizationGateway = { categorizeBatch };
+const defaultJudge: CategorizationJudge = { judgeCategorizations };
 
 export async function processCategorizeJob(
   data: CategorizeJobData,
   options: {
     gateway?: CategorizationGateway;
+    judge?: CategorizationJudge;
     merchantCache?: MerchantCategoryCache;
     fallbackOnError?: boolean;
   } = {},
 ): Promise<void> {
   const gateway = options.gateway ?? defaultGateway;
+  const judge = options.judge ?? defaultJudge;
   const merchantCache = options.merchantCache ?? redisMerchantCategoryCache;
 
   while (true) {
@@ -112,6 +133,13 @@ export async function processCategorizeJob(
       }));
     }
 
+    const excludeFromCache = new Set<string>();
+    if (!fallbackUsed) {
+      const judged = await validateAndJudgeResults(results, cacheMisses, data, judge);
+      results = judged.results;
+      for (const id of judged.excludeFromCache) excludeFromCache.add(id);
+    }
+
     const byId = new Map(results.map((result) => [result.id, result]));
     const cacheWrites: Array<{
       userId: string;
@@ -140,7 +168,12 @@ export async function processCategorizeJob(
             categorizedAt: now,
           },
         });
-        if (transaction.merchantName && !fallbackUsed && isCacheableResult(result)) {
+        if (
+          transaction.merchantName &&
+          !fallbackUsed &&
+          !excludeFromCache.has(transaction.id) &&
+          isCacheableResult(result)
+        ) {
           cacheWrites.push({
             userId: data.userId,
             merchantName: transaction.merchantName,
@@ -157,13 +190,66 @@ export async function processCategorizeJob(
   }
 }
 
+async function validateAndJudgeResults(
+  results: CategorizeResult[],
+  transactions: Array<{ id: string; rawDescription: string }>,
+  data: CategorizeJobData,
+  judge: CategorizationJudge,
+): Promise<{ results: CategorizeResult[]; excludeFromCache: Set<string> }> {
+  const validatedResults: CategorizeResult[] = [];
+  const excludeFromCache = new Set<string>();
+  const flagLogs: JudgeFlagLog[] = [];
+
+  for (const result of results) {
+    const validated = validateCategorizationResult(result, config.CATEGORIZE_JUDGE_MIN_CONFIDENCE);
+    validatedResults.push(validated.result);
+    if (validated.flagged) {
+      excludeFromCache.add(validated.result.id);
+      if (validated.log) flagLogs.push(validated.log);
+    }
+  }
+
+  for (const log of flagLogs) logJudgeFlag(log);
+
+  if (!config.CATEGORIZE_JUDGE_ENABLED) {
+    return { results: validatedResults, excludeFromCache };
+  }
+
+  const inBandResults = selectResultsForJudge(
+    validatedResults,
+    config.CATEGORIZE_JUDGE_MIN_CONFIDENCE,
+    config.CATEGORIZE_JUDGE_REVIEW_CEILING,
+  );
+  if (inBandResults.length === 0) return { results: validatedResults, excludeFromCache };
+
+  const transactionById = new Map(transactions.map((transaction) => [transaction.id, transaction]));
+  try {
+    const verdicts = await judge.judgeCategorizations(
+      inBandResults.map((result) => {
+        const transaction = transactionById.get(result.id);
+        return {
+          id: result.id,
+          description: transaction?.rawDescription ?? "",
+          holderName: data.holderName ?? null,
+          proposedCategory: result.category,
+        };
+      }),
+    );
+    const judged = applyJudgeVerdicts(validatedResults, verdicts);
+    for (const id of judged.excludeFromCache) excludeFromCache.add(id);
+    for (const disagreement of judged.disagreements) logJudgeDisagreement(disagreement);
+    return { results: judged.results, excludeFromCache };
+  } catch {
+    warnJudgeDegraded();
+    return { results: validatedResults, excludeFromCache };
+  }
+}
+
 // Don't seed the cache from weak signals: an `other` or low-confidence result would
 // pin a merchant to a bad category for every future transaction. Let those re-hit the
 // LLM until a confident answer is produced.
-const MERCHANT_CACHE_MIN_CONFIDENCE = 0.5;
-
 function isCacheableResult(result: { category: Category; confidence: number }): boolean {
-  return result.category !== Category.other && result.confidence >= MERCHANT_CACHE_MIN_CONFIDENCE;
+  return result.category !== Category.other && result.confidence >= config.CATEGORIZE_JUDGE_MIN_CONFIDENCE;
 }
 
 // Surface cache degradation without leaking PII (no keys/descriptions) and without
@@ -175,6 +261,23 @@ function warnCacheDegraded(): void {
     lastCacheWarnAt = now;
     console.warn("[categorize] merchant cache unavailable — degrading to LLM categorization");
   }
+}
+
+let lastJudgeWarnAt = 0;
+function warnJudgeDegraded(): void {
+  const now = Date.now();
+  if (now - lastJudgeWarnAt > 60_000) {
+    lastJudgeWarnAt = now;
+    console.warn("[categorize] categorization judge unavailable — proceeding without judge validation");
+  }
+}
+
+function logJudgeFlag(record: JudgeFlagLog): void {
+  console.warn("[categorize] categorization result flagged", record);
+}
+
+function logJudgeDisagreement(record: JudgeDisagreementLog): void {
+  console.warn("[categorize] categorization judge disagreed", record);
 }
 
 async function safeGetCachedMerchant(

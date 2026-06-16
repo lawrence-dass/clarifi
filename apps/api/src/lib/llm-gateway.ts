@@ -4,7 +4,10 @@ import * as z from "zod/v4";
 import { Category } from "@clarifi/shared";
 import { config } from "../config.js";
 import { anonymizeDescription } from "./anonymize.js";
-import { CATEGORIZATION_SYSTEM_PROMPT } from "../modules/categorization/categorization.prompt.js";
+import {
+  CATEGORIZATION_JUDGE_SYSTEM_PROMPT,
+  CATEGORIZATION_SYSTEM_PROMPT,
+} from "../modules/categorization/categorization.prompt.js";
 
 const CategorySchema = z.enum(Category);
 const BatchResultSchema = z.object({
@@ -12,6 +15,16 @@ const BatchResultSchema = z.object({
     z.object({
       id: z.string(),
       category: CategorySchema,
+      confidence: z.number().min(0).max(1),
+    }),
+  ),
+});
+const JudgeVerdictSchema = z.object({
+  results: z.array(
+    z.object({
+      id: z.string(),
+      agree: z.boolean(),
+      suggestedCategory: CategorySchema.optional(),
       confidence: z.number().min(0).max(1),
     }),
   ),
@@ -27,6 +40,20 @@ export interface CategorizeInput {
 export interface CategorizeResult {
   id: string;
   category: Category;
+  confidence: number;
+}
+
+export interface JudgeInput {
+  id: string;
+  description: string;
+  holderName?: string | null;
+  proposedCategory: Category;
+}
+
+export interface JudgeVerdict {
+  id: string;
+  agree: boolean;
+  suggestedCategory?: Category;
   confidence: number;
 }
 
@@ -54,12 +81,41 @@ export async function categorizeBatch(
   return mapAndValidateResults(items, parsed.results);
 }
 
+export async function judgeCategorizations(
+  items: JudgeInput[],
+  client: AnthropicLike = createAnthropicClient(),
+): Promise<JudgeVerdict[]> {
+  if (items.length === 0) return [];
+
+  const response = await client.messages.parse({
+    model: config.CATEGORIZE_JUDGE_MODEL,
+    max_tokens: maxTokensForBatch(items.length),
+    system: CATEGORIZATION_JUDGE_SYSTEM_PROMPT,
+    messages: [{ role: "user", content: buildJudgePrompt(items) }],
+    output_config: { format: zodOutputFormat(JudgeVerdictSchema) },
+  });
+
+  const parsed = JudgeVerdictSchema.parse(response.parsed_output);
+  return mapAndValidateJudgeVerdicts(items, parsed.results);
+}
+
 export function buildCategorizationPrompt(items: CategorizeInput[]): string {
   return JSON.stringify({
     categories: Object.values(Category),
     transactions: items.map((item, index) => ({
       id: toAlias(index),
       description: anonymizeDescription(item.description, { holderName: item.holderName }),
+    })),
+  });
+}
+
+export function buildJudgePrompt(items: JudgeInput[]): string {
+  return JSON.stringify({
+    categories: Object.values(Category),
+    transactions: items.map((item, index) => ({
+      id: toAlias(index),
+      description: anonymizeDescription(item.description, { holderName: item.holderName }),
+      proposedCategory: item.proposedCategory,
     })),
   });
 }
@@ -86,6 +142,34 @@ function mapAndValidateResults(
 
   if (seen.size !== items.length) {
     throw new Error("LLM categorization result count did not match input count");
+  }
+
+  return mapped;
+}
+
+function mapAndValidateJudgeVerdicts(
+  items: JudgeInput[],
+  results: z.infer<typeof JudgeVerdictSchema>["results"],
+): JudgeVerdict[] {
+  const aliases = new Map(items.map((item, index) => [toAlias(index), item.id]));
+  const seen = new Set<string>();
+  const mapped: JudgeVerdict[] = [];
+
+  for (const result of results) {
+    const originalId = aliases.get(result.id);
+    if (!originalId) throw new Error(`LLM judge returned unknown transaction alias: ${result.id}`);
+    if (seen.has(result.id)) throw new Error(`LLM judge returned duplicate transaction alias: ${result.id}`);
+    seen.add(result.id);
+    mapped.push({
+      id: originalId,
+      agree: result.agree,
+      suggestedCategory: result.suggestedCategory,
+      confidence: result.confidence,
+    });
+  }
+
+  if (seen.size !== items.length) {
+    throw new Error("LLM judge result count did not match input count");
   }
 
   return mapped;
