@@ -34,3 +34,10 @@ coverage/
 
 # Session handoff: track logic + live CURRENT.md, ignore ephemeral timestamped copies
 _bmad-output/handoff/
+
+# Incidental per-session skill installs (BMAD skills under .claude/skills/ ARE tracked;
+# these are personal/global tooling that shouldn't be committed per-project)
+.claude/skills/caveman/
+.claude/skills/find-skills/
+.claude/skills/improve/
+skills-lock.json
