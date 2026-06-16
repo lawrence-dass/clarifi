@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-06-15
-last_updated: 2026-06-16 (story 2.3 ready-for-dev)
+last_updated: 2026-06-16 (story 2.3 done)
 project: Clarifi
 project_key: NOKEY
 tracking_system: file-system
@@ -56,8 +56,8 @@ development_status:
   epic-2: in-progress
   2-1-llm-categorization-pipeline: done
   2-2-merchant-normalization-cache: done
-  2-3-category-override-correction-learning: ready-for-dev
-  2-4-llm-as-judge-validation: backlog
+  2-3-category-override-correction-learning: done
+  2-4-llm-as-judge-validation: ready-for-dev
   epic-2-retrospective: optional
 
   # Epic 3: Spending Dashboard

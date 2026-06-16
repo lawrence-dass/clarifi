@@ -2,6 +2,7 @@ import { Router, type Request, type Response, type NextFunction } from "express"
 import multer from "multer";
 import { requireAuth } from "../../middleware/auth.js";
 import { AppError, badRequest } from "../../lib/app-error.js";
+import { overrideCategory } from "../categorization/category-override.controller.js";
 import { importStatement } from "./ingestion.controller.js";
 
 /**
@@ -35,3 +36,4 @@ function uploadCsv(req: Request, res: Response, next: NextFunction): void {
 }
 
 transactionsRouter.post("/import", requireAuth, uploadCsv, importStatement);
+transactionsRouter.patch("/:transactionId/category", requireAuth, overrideCategory);
