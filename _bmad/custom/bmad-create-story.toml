@@ -1,0 +1,13 @@
+# Team override for bmad-create-story. Tracked in git (shared project-wide).
+# Merges over the base customize.toml per BMad structural rules:
+#   scalars override • arrays (persistent_facts, activation_steps_*) append.
+
+[workflow]
+
+# Standing content requirement carried for the whole run: every generated story
+# must embed a story-specific self-review block so the implementing agent (Claude
+# or Codex) pre-empts the exact findings our bmad-code-review hunts for, shifting
+# that work left and minimizing review churn.
+persistent_facts = [
+  "Every story file MUST include a `## Pre-Review Due Diligence` section placed immediately before `## Dev Agent Record`. It instructs the implementing agent to self-review BEFORE handoff against the three bmad-code-review lenses (Blind Hunter = context-free bugs, Edge Case Hunter = boundaries, Acceptance Auditor = AC coverage) plus this repo's guardrail tripwire. Tailor every bullet to THIS story (never boilerplate) and cover: (1) AC -> test traceability — every AC mapped to a named test, mapping recorded in Completion Notes; (2) Guardrail tripwire — name the story's expected guardrail surface(s), require `git diff --name-only` with a per-surface justification, and flag any unexpected guardrail-touching file as out of scope; (3) Edge / failure paths — enumerate the story's boundaries (null/empty, 401/unauthorized, cross-tenant, provider/LLM/Redis failure degradation, idempotent re-run, numeric/band boundaries); (4) Reuse first — name the existing helpers to reuse and forbid duplication or second clients/SDK imports; (5) Scope discipline — touch only the files the story lists; (6) Evidence, not claims — run the story's verification commands and paste real results (typecheck + targeted test pass counts) into the record, never marking done on \"looks complete\".",
+]
