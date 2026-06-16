@@ -27,3 +27,16 @@ code itself.
 - **Enqueue durability:** ingestion records a durable outbox request before dispatching
   the categorize job, so a Redis hiccup never fails the import and the worker can drain
   unprocessed requests. Reuse this pattern for any ingestion-triggered async work.
+
+## Planning docs are sharded — 2026-06-16
+
+- `epics.md` and `architecture.md` are sharded into `planning-artifacts/epics/` and
+  `planning-artifacts/architecture/` (each with an `index.md`). The monoliths were moved
+  to `archive/planning-pre-shard/`. `create-story`'s discover-inputs prefers the sharded
+  folders and can selectively load a single epic shard (e.g. `epics/epic-3-*.md`) — load
+  only the epic/section you need, not the whole tree.
+- **Caveat:** `bmad-story-automator` step-02 still suggests `planning-artifacts/epics.md`
+  as its default epic path. That monolith is archived — when prompted, point it at the
+  relevant shard (e.g. `planning-artifacts/epics/epic-2-smart-categorization.md`).
+- Completed Epic-1 story files live in `archive/epic-1-completed/`; their `epics.md#…` /
+  `architecture.md#…` anchors are historical and intentionally left unmigrated.
