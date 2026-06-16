@@ -4,6 +4,8 @@ import helmet from "helmet";
 import cookieParser from "cookie-parser";
 import pinoHttp from "pino-http";
 import { config } from "./config.js";
+import { authRouter } from "./modules/auth/auth.routes.js";
+import { errorMiddleware } from "./middleware/error.js";
 
 /**
  * Build the Express app. Routes are mounted here as epics land:
@@ -19,13 +21,21 @@ export function createApp(): Express {
       credentials: true, // httpOnly auth cookies
     }),
   );
+  // pino-http first so req.log is attached before body parsing — a malformed or
+  // oversized JSON body throws inside express.json, and the error handler needs
+  // req.log to record it.
+  app.use(pinoHttp({ level: config.NODE_ENV === "test" ? "silent" : "info" }));
   app.use(express.json({ limit: "1mb" }));
   app.use(cookieParser());
-  app.use(pinoHttp({ level: config.NODE_ENV === "test" ? "silent" : "info" }));
 
   app.get("/health", (_req: Request, res: Response) => {
     res.json({ status: "ok", service: "clarifi-api", version: "1.1.0" });
   });
+
+  app.use("/auth", authRouter);
+
+  // Central error handler — must be registered last, after all routes.
+  app.use(errorMiddleware);
 
   return app;
 }

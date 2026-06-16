@@ -1,5 +1,12 @@
 # Deferred Work
 
+## Deferred from: code review of story-1.2 (2026-06-15)
+
+- **Rate limiting on auth routes** — `/auth/register` has no rate limit (email-enumeration amplifier + argon2 64 MiB DoS surface). Architecture plans `apps/api/src/middleware/rate-limit.ts`. Add it as a cross-cutting middleware (login Story 1.3 or Epic 8). [apps/api/src/modules/auth/auth.routes.ts]
+- **Isolated test database** — integration tests load the root `.env` and run against the live Supabase instance (matches Story 1.1's `rls.test.ts`). Stand up a dedicated test DB (or schema) so tests never touch dev/prod data. Repo-wide infra. [apps/api/vitest.config.ts, packages/shared/vitest.config.ts]
+- **`asyncHandler` wrapper** — every async Express handler currently hand-rolls try/catch + `next(err)`. Add a shared `asyncHandler` util before more routes land in Story 1.3. [apps/api/src/lib/]
+- **DB error taxonomy** — only Prisma `P2002` is mapped (→409); transient pooler errors (P1017, connection lost) become 500 instead of a retryable 503. Build a small Prisma-error→HTTP mapper when more DB writes exist. [apps/api/src/modules/auth/auth.service.ts]
+
 ## Deferred from: code review of story-1.1 (2026-06-15)
 
 - **Cross-account integrity: composite FK on transactions** — denormalized `transactions.user_id` + unscoped `account_id` FK lets a tenant insert a transaction with `user_id = me` but `account_id` referencing another tenant's account (RLS WITH CHECK only validates `user_id`). Deferred to preserve Story 1.1's "don't edit the schema" boundary; low real-world exploitability (RLS still hides the victim account on join). Fix = add `unique(accounts.id, user_id)` + composite FK `(account_id, user_id) → accounts(id, user_id)` on `transactions`. [packages/shared/prisma/schema.prisma]
