@@ -9,6 +9,7 @@ import {
   TransactionDirection,
 } from "@clarifi/shared";
 import { processCategorizeJob, type CategorizationGateway } from "./categorize.worker.js";
+import type { MerchantCategoryCache } from "../modules/categorization/merchant-cache.js";
 
 const dbUrl = process.env.DATABASE_URL ?? "";
 const hasDb = dbUrl.length > 0 && !dbUrl.includes("placeholder");
@@ -51,6 +52,24 @@ async function seedTransaction(rawDescription = "COFFEE SHOP") {
   return { user, account, transaction };
 }
 
+function makeMemoryMerchantCache(): MerchantCategoryCache & {
+  values: Map<string, { category: Category; confidence: number }>;
+} {
+  const values = new Map<string, { category: Category; confidence: number }>();
+  return {
+    values,
+    async get(input) {
+      return values.get(`${input.userId}:${input.merchantName}`) ?? null;
+    },
+    async set(input) {
+      values.set(`${input.userId}:${input.merchantName}`, {
+        category: input.category,
+        confidence: input.confidence,
+      });
+    },
+  };
+}
+
 afterAll(async () => {
   if (emails.length) await prisma.user.deleteMany({ where: { email: { in: emails } } });
   await prisma.$disconnect();
@@ -69,10 +88,127 @@ describe.skipIf(!hasDb)("processCategorizeJob", () => {
     await processCategorizeJob({ userId: user.id, accountId: account.id }, { gateway });
 
     const row = await prisma.transaction.findUniqueOrThrow({ where: { id: transaction.id } });
+    expect(row.merchantName).toBe("Coffee Shop");
     expect(row.category).toBe(Category.food_and_dining);
     expect(row.categorySource).toBe(CategorySource.llm);
     expect(row.categoryConfidence).toBe(0.82);
     expect(row.categorizedAt).toBeInstanceOf(Date);
+  }, 10_000);
+
+  it("uses merchant cache hits without calling the gateway", async () => {
+    const { user, account, transaction } = await seedTransaction("TIM HORTONS #1234 VANCOUVER BC");
+    const merchantCache = makeMemoryMerchantCache();
+    await merchantCache.set({
+      userId: user.id,
+      merchantName: "Tim Hortons",
+      category: Category.food_and_dining,
+      confidence: 1,
+    });
+    const gateway: CategorizationGateway = {
+      categorizeBatch: async () => {
+        throw new Error("gateway should not be called for cache hits");
+      },
+    };
+
+    await processCategorizeJob(
+      { userId: user.id, accountId: account.id },
+      { gateway, merchantCache },
+    );
+
+    const row = await prisma.transaction.findUniqueOrThrow({ where: { id: transaction.id } });
+    expect(row.merchantName).toBe("Tim Hortons");
+    expect(row.category).toBe(Category.food_and_dining);
+    expect(row.categorySource).toBe(CategorySource.merchant_cache);
+    expect(row.categoryConfidence).toBe(1);
+    expect(row.categorizedAt).toBeInstanceOf(Date);
+  }, 10_000);
+
+  it("seeds merchant cache from LLM results and uses it for later transactions", async () => {
+    const { user, account, transaction } = await seedTransaction("TIM HORTONS #1234 VANCOUVER BC");
+    const merchantCache = makeMemoryMerchantCache();
+    let gatewayCalls = 0;
+    const gateway: CategorizationGateway = {
+      categorizeBatch: async (items) => {
+        gatewayCalls += 1;
+        return items.map((item) => ({
+          id: item.id,
+          category: Category.food_and_dining,
+          confidence: 0.81,
+        }));
+      },
+    };
+
+    await processCategorizeJob(
+      { userId: user.id, accountId: account.id },
+      { gateway, merchantCache },
+    );
+
+    expect(gatewayCalls).toBe(1);
+    expect(merchantCache.values.get(`${user.id}:Tim Hortons`)).toEqual({
+      category: Category.food_and_dining,
+      confidence: 0.81,
+    });
+
+    const second = await prisma.transaction.create({
+      data: {
+        userId: user.id,
+        accountId: account.id,
+        provider: Provider.csv,
+        providerTransactionId: `txn-${randomUUID()}`,
+        date: new Date("2026-06-03T00:00:00.000Z"),
+        amountCents: -625n,
+        direction: TransactionDirection.debit,
+        currency: "CAD",
+        rawDescription: "TIM HORTONS #5678 BURNABY BC",
+      },
+    });
+
+    await processCategorizeJob(
+      { userId: user.id, accountId: account.id },
+      { gateway, merchantCache },
+    );
+
+    expect(gatewayCalls).toBe(1);
+    const firstRow = await prisma.transaction.findUniqueOrThrow({ where: { id: transaction.id } });
+    const secondRow = await prisma.transaction.findUniqueOrThrow({ where: { id: second.id } });
+    expect(firstRow.categorySource).toBe(CategorySource.llm);
+    expect(secondRow.categorySource).toBe(CategorySource.merchant_cache);
+    expect(secondRow.merchantName).toBe("Tim Hortons");
+  }, 15_000);
+
+  it("does not seed the merchant cache from 'other' or low-confidence results", async () => {
+    const { user, account } = await seedTransaction("MYSTERY VENDOR LTD");
+    const merchantCache = makeMemoryMerchantCache();
+    const gateway: CategorizationGateway = {
+      categorizeBatch: async (items) =>
+        items.map((item) => ({ id: item.id, category: Category.other, confidence: 0.2 })),
+    };
+
+    await processCategorizeJob(
+      { userId: user.id, accountId: account.id },
+      { gateway, merchantCache },
+    );
+
+    expect(merchantCache.values.size).toBe(0);
+  }, 10_000);
+
+  it("does not derive a merchant name or cache key from person transfers", async () => {
+    const { user, account, transaction } = await seedTransaction("PAYMENT TO JANE DOE");
+    const merchantCache = makeMemoryMerchantCache();
+    const gateway: CategorizationGateway = {
+      categorizeBatch: async (items) =>
+        items.map((item) => ({ id: item.id, category: Category.transfers, confidence: 0.95 })),
+    };
+
+    await processCategorizeJob(
+      { userId: user.id, accountId: account.id, holderName: "Jane Doe" },
+      { gateway, merchantCache },
+    );
+
+    const row = await prisma.transaction.findUniqueOrThrow({ where: { id: transaction.id } });
+    expect(row.merchantName).toBeNull();
+    expect(row.category).toBe(Category.transfers);
+    expect(merchantCache.values.size).toBe(0);
   }, 10_000);
 
   it("passes holder names from the job through to the gateway for redaction", async () => {
@@ -109,6 +245,7 @@ describe.skipIf(!hasDb)("processCategorizeJob", () => {
     );
 
     const row = await prisma.transaction.findUniqueOrThrow({ where: { id: transaction.id } });
+    expect(row.merchantName).toBe("Unknown Merchant");
     expect(row.category).toBe(Category.other);
     expect(row.categorySource).toBe(CategorySource.llm);
     expect(row.categoryConfidence).toBe(0);
