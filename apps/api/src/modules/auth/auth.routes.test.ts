@@ -1,7 +1,16 @@
 import { afterAll, describe, expect, it } from "vitest";
 import { randomUUID } from "node:crypto";
 import request from "supertest";
-import { prisma } from "@clarifi/shared";
+import {
+  prisma,
+  AccountType,
+  AnomalySeverity,
+  AnomalyType,
+  Category,
+  ConsentStatus,
+  Provider,
+  TransactionDirection,
+} from "@clarifi/shared";
 import { createApp } from "../../app.js";
 
 // End-to-end tests through the mounted Express app — exercises the full stack
@@ -40,6 +49,59 @@ function cookiesFrom(res: request.Response): string[] {
 function cookieHeader(setCookies: string[]): string {
   // Reduce "name=value; Path=...; HttpOnly" entries to a "name=value; ..." request header.
   return setCookies.map((c) => c.split(";")[0]).join("; ");
+}
+
+async function seedOwnedData(userId: string) {
+  const account = await prisma.account.create({
+    data: {
+      userId,
+      provider: Provider.csv,
+      providerAccountId: `acct-${randomUUID()}`,
+      institutionName: "Deletion Test Bank",
+      accountType: AccountType.checking,
+      balanceCents: 12345n,
+      currency: "CAD",
+    },
+  });
+  const transaction = await prisma.transaction.create({
+    data: {
+      accountId: account.id,
+      userId,
+      provider: Provider.csv,
+      providerTransactionId: `txn-${randomUUID()}`,
+      date: new Date("2026-06-01T00:00:00.000Z"),
+      amountCents: -425n,
+      direction: TransactionDirection.debit,
+      currency: "CAD",
+      rawDescription: "COFFEE SHOP",
+    },
+  });
+  const budget = await prisma.budget.create({
+    data: {
+      userId,
+      category: Category.food_and_dining,
+      monthlyLimitCents: 50000n,
+      month: "2026-06",
+    },
+  });
+  const anomaly = await prisma.anomaly.create({
+    data: {
+      userId,
+      transactionId: transaction.id,
+      type: AnomalyType.amount,
+      severity: AnomalySeverity.warning,
+    },
+  });
+  const consent = await prisma.consent.create({
+    data: {
+      userId,
+      provider: Provider.csv,
+      scopes: ["transactions:read"],
+      status: ConsentStatus.granted,
+      grantedAt: new Date("2026-06-01T00:00:00.000Z"),
+    },
+  });
+  return { account, transaction, budget, anomaly, consent };
 }
 
 describe.skipIf(!hasDb)("POST /auth/register (e2e)", () => {
@@ -186,6 +248,11 @@ describe.skipIf(!hasDb)("login / refresh / logout / me (e2e)", () => {
       request(app).post("/auth/refresh").set("Cookie", refreshCookie),
     ]);
     expect([a.status, b.status].sort()).toEqual([200, 401]);
+    const winner = a.status === 200 ? a : b;
+    const winnerRefresh = cookieHeader(cookiesFrom(winner).filter((c) => c.startsWith("refresh_token=")));
+
+    const nextRotation = await request(app).post("/auth/refresh").set("Cookie", winnerRefresh);
+    expect(nextRotation.status).toBe(200);
   });
 
   it("detects refresh-token reuse and revokes the family (AC #3)", async () => {
@@ -216,5 +283,80 @@ describe.skipIf(!hasDb)("login / refresh / logout / me (e2e)", () => {
 
     // The revoked token can no longer refresh.
     expect((await request(app).post("/auth/refresh").set("Cookie", refresh)).status).toBe(401);
+  });
+
+  it("DELETE /auth/me cascades all owned data, clears credentials, and leaves other users intact (Story 1.6)", async () => {
+    const email = uniqueEmail();
+    const otherEmail = uniqueEmail();
+    const login = await registerAndLogin(email);
+    const otherLogin = await registerAndLogin(otherEmail);
+    const cookie = cookieHeader(cookiesFrom(login));
+    const otherUserId = otherLogin.body.id as string;
+    const seeded = await seedOwnedData(login.body.id);
+    const otherSeeded = await seedOwnedData(otherUserId);
+
+    expect(await prisma.refreshToken.count({ where: { userId: login.body.id } })).toBeGreaterThan(0);
+
+    const deleted = await request(app)
+      .delete("/auth/me")
+      .set("Cookie", cookie)
+      .send({ currentPassword: "correct-horse-battery", confirm: "DELETE" });
+    expect(deleted.status).toBe(200);
+    expect(deleted.body).toMatchObject({
+      deleted: true,
+      message: expect.stringContaining("account"),
+      llmProviderLogHandling: expect.stringContaining("anonymized"),
+    });
+    expect(deleted.body.llmProviderLogHandling).toContain(
+      "does not delete third-party LLM-provider logs",
+    );
+    const cleared = cookiesFrom(deleted);
+    expect(cleared.some((c) => c.startsWith("access_token=;"))).toBe(true);
+    expect(cleared.some((c) => c.startsWith("refresh_token=;"))).toBe(true);
+
+    expect(await prisma.user.findUnique({ where: { id: login.body.id } })).toBeNull();
+    expect(await prisma.account.findUnique({ where: { id: seeded.account.id } })).toBeNull();
+    expect(await prisma.transaction.findUnique({ where: { id: seeded.transaction.id } })).toBeNull();
+    expect(await prisma.budget.findUnique({ where: { id: seeded.budget.id } })).toBeNull();
+    expect(await prisma.anomaly.findUnique({ where: { id: seeded.anomaly.id } })).toBeNull();
+    expect(await prisma.consent.findUnique({ where: { id: seeded.consent.id } })).toBeNull();
+    expect(await prisma.refreshToken.count({ where: { userId: login.body.id } })).toBe(0);
+
+    expect(await prisma.user.findUnique({ where: { id: otherUserId } })).not.toBeNull();
+    expect(await prisma.account.findUnique({ where: { id: otherSeeded.account.id } })).not.toBeNull();
+    expect(await prisma.transaction.findUnique({ where: { id: otherSeeded.transaction.id } })).not.toBeNull();
+
+    const staleAccess = await request(app).get("/auth/me").set("Cookie", cookie);
+    expect(staleAccess.status).toBe(401);
+    const staleRefresh = await request(app).post("/auth/refresh").set("Cookie", cookie);
+    expect(staleRefresh.status).toBe(401);
+  }, 10_000);
+
+  it("DELETE /auth/me requires explicit confirmation and the current password (Story 1.6)", async () => {
+    const email = uniqueEmail();
+    const login = await registerAndLogin(email);
+    const cookie = cookieHeader(cookiesFrom(login));
+
+    const missingConfirmation = await request(app)
+      .delete("/auth/me")
+      .set("Cookie", cookie)
+      .send({ currentPassword: "correct-horse-battery" });
+    expect(missingConfirmation.status).toBe(400);
+    expect(missingConfirmation.body.error.code).toBe("VALIDATION_ERROR");
+
+    const wrongPassword = await request(app)
+      .delete("/auth/me")
+      .set("Cookie", cookie)
+      .send({ currentPassword: "wrong-password", confirm: "DELETE" });
+    expect(wrongPassword.status).toBe(401);
+    expect(wrongPassword.body.error.code).toBe("DELETE_REAUTH_FAILED");
+
+    expect(await prisma.user.findUnique({ where: { id: login.body.id } })).not.toBeNull();
+  }, 10_000);
+
+  it("DELETE /auth/me requires authentication (Story 1.6)", async () => {
+    const res = await request(app).delete("/auth/me");
+    expect(res.status).toBe(401);
+    expect(res.body.error.code).toBe("UNAUTHENTICATED");
   });
 });

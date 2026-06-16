@@ -42,3 +42,15 @@ export const LoginInput = z.object({
 });
 
 export type LoginInput = z.infer<typeof LoginInput>;
+
+/**
+ * Account deletion request body. Deletion is destructive and irreversible, so
+ * the API requires both recent knowledge of the password and an explicit typed
+ * confirmation phrase.
+ */
+export const DeleteAccountInput = z.object({
+  currentPassword: z.string().min(1).max(128),
+  confirm: z.literal("DELETE"),
+});
+
+export type DeleteAccountInput = z.infer<typeof DeleteAccountInput>;

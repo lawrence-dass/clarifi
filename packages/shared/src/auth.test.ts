@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { RegisterInput, LoginInput } from "./auth.js";
+import { RegisterInput, LoginInput, DeleteAccountInput } from "./auth.js";
 
 // Pure schema unit tests — no DB, always run in CI.
 describe("RegisterInput", () => {
@@ -69,5 +69,19 @@ describe("LoginInput", () => {
   it("rejects a missing email or empty password", () => {
     expect(LoginInput.safeParse({ password: "x" }).success).toBe(false);
     expect(LoginInput.safeParse({ email: "a@b.com", password: "" }).success).toBe(false);
+  });
+});
+
+describe("DeleteAccountInput", () => {
+  it("requires the current password and exact DELETE confirmation", () => {
+    expect(
+      DeleteAccountInput.safeParse({ currentPassword: "correct-horse-battery", confirm: "DELETE" })
+        .success,
+    ).toBe(true);
+    expect(
+      DeleteAccountInput.safeParse({ currentPassword: "correct-horse-battery", confirm: "delete" })
+        .success,
+    ).toBe(false);
+    expect(DeleteAccountInput.safeParse({ confirm: "DELETE" }).success).toBe(false);
   });
 });

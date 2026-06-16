@@ -12,6 +12,8 @@ import { config } from "../../config.js";
  */
 
 const accessSecret = new TextEncoder().encode(config.JWT_ACCESS_SECRET);
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export async function issueAccessToken(userId: string): Promise<string> {
   // Derive the JWT exp from durationToSeconds so the token lifetime, the cookie
@@ -30,7 +32,7 @@ export async function issueAccessToken(userId: string): Promise<string> {
 /** Verify an access JWT and return its subject (userId). Throws if invalid/expired. */
 export async function verifyAccessToken(token: string): Promise<string> {
   const { payload } = await jwtVerify(token, accessSecret, { algorithms: ["HS256"] });
-  if (typeof payload.sub !== "string" || payload.sub.length === 0) {
+  if (typeof payload.sub !== "string" || !UUID_RE.test(payload.sub)) {
     throw new Error("access token missing subject");
   }
   return payload.sub;

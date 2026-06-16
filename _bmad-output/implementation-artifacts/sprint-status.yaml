@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-06-15
-last_updated: 2026-06-15 (story 1.3 done — implemented + code-reviewed, all patches applied)
+last_updated: 2026-06-16 (epic 2 started; story 2.1 created, ready-for-dev)
 project: Clarifi
 project_key: NOKEY
 tracking_system: file-system
@@ -43,18 +43,18 @@ story_location: "{project-root}/_bmad-output/implementation-artifacts"
 
 development_status:
   # Epic 1: Foundation & Auth
-  epic-1: in-progress
+  epic-1: done
   1-1-persistence-foundation-rls-enablement: done
   1-2-user-registration-with-email-pipeda-consent: done
   1-3-user-login-with-jwt-and-refresh-rotation: done
-  1-4-csv-statement-upload-canonical-parsing: backlog
-  1-5-idempotent-ingestion-duplicate-detection: backlog
-  1-6-account-data-deletion-pipeda: backlog
+  1-4-csv-statement-upload-canonical-parsing: done
+  1-5-idempotent-ingestion-duplicate-detection: done
+  1-6-account-data-deletion-pipeda: done
   epic-1-retrospective: optional
 
   # Epic 2: Smart Categorization
-  epic-2: backlog
-  2-1-llm-categorization-pipeline: backlog
+  epic-2: in-progress
+  2-1-llm-categorization-pipeline: ready-for-dev
   2-2-merchant-normalization-cache: backlog
   2-3-category-override-correction-learning: backlog
   2-4-llm-as-judge-validation: backlog

@@ -1,11 +1,12 @@
 import type { Request, Response, NextFunction } from "express";
-import { RegisterInput, LoginInput } from "@clarifi/shared";
+import { RegisterInput, LoginInput, DeleteAccountInput } from "@clarifi/shared";
 import {
   registerUser,
   loginUser,
   rotateRefreshToken,
   revokeRefreshToken,
   getPublicUser,
+  deleteUserAccount,
 } from "./auth.service.js";
 import { issueAccessToken } from "./tokens.js";
 import { setAuthCookies, clearAuthCookies, REFRESH_COOKIE } from "./cookies.js";
@@ -86,6 +87,23 @@ export async function me(req: Request, res: Response, next: NextFunction): Promi
     const user = req.userId ? await getPublicUser(req.userId) : null;
     if (!user) throw unauthorized("UNAUTHENTICATED", "Authentication required");
     res.status(200).json(user);
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * DELETE /auth/me — delete the authenticated account and all user-owned data
+ * through DB cascades. Returns an explicit PIPEDA confirmation payload and
+ * clears auth cookies in the same response.
+ */
+export async function deleteMe(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    if (!req.userId) throw unauthorized("UNAUTHENTICATED", "Authentication required");
+    const input = DeleteAccountInput.parse(req.body);
+    const result = await deleteUserAccount(req.userId, input);
+    clearAuthCookies(res);
+    res.status(200).json(result);
   } catch (err) {
     next(err);
   }

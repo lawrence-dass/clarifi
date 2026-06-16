@@ -26,6 +26,11 @@ describe("access token", () => {
   it("rejects a garbage token", async () => {
     await expect(verifyAccessToken("not-a-jwt")).rejects.toBeTruthy();
   });
+
+  it("rejects a signed token whose subject is not a UUID", async () => {
+    const token = await issueAccessToken("not-a-uuid");
+    await expect(verifyAccessToken(token)).rejects.toBeTruthy();
+  });
 });
 
 describe("refresh token", () => {

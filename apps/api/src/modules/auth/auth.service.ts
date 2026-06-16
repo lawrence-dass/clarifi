@@ -1,6 +1,13 @@
 import { randomUUID } from "node:crypto";
 import argon2 from "argon2";
-import { prisma, Prisma, type RegisterInput, type LoginInput } from "@clarifi/shared";
+import {
+  prisma,
+  withUserContext,
+  Prisma,
+  type RegisterInput,
+  type LoginInput,
+  type DeleteAccountInput,
+} from "@clarifi/shared";
 import { conflict, unauthorized } from "../../lib/app-error.js";
 import { config } from "../../config.js";
 import { generateRefreshToken, hashToken, durationToSeconds } from "./tokens.js";
@@ -22,6 +29,15 @@ export interface PublicUser {
   email: string;
   consentedAt: Date;
 }
+
+export interface DeleteAccountResult {
+  deleted: true;
+  message: string;
+  llmProviderLogHandling: string;
+}
+
+export const LLM_PROVIDER_LOG_HANDLING_NOTE =
+  "Clarifi deletes its retained user data. This endpoint does not delete third-party LLM-provider logs; any provider-retained logs are expected to contain only anonymized transaction payloads and remain subject to the provider's retention controls.";
 
 /**
  * Create a PIPEDA-consented user. Uses the base `prisma` client directly — NOT
@@ -89,6 +105,13 @@ async function issueRefreshRow(userId: string, familyId: string): Promise<string
   return raw;
 }
 
+function isMissingUserDuringTokenIssue(err: unknown): boolean {
+  return (
+    err instanceof Prisma.PrismaClientKnownRequestError
+    && (err.code === "P2003" || err.code === "P2025")
+  );
+}
+
 /**
  * Verify credentials and start a session. Returns the user + a new refresh
  * token (caller mints the access token and sets cookies). Wrong email and
@@ -104,7 +127,13 @@ export async function loginUser(input: LoginInput): Promise<Omit<IssuedTokens, "
   const ok = await argon2.verify(user.passwordHash, input.password).catch(() => false);
   if (!ok) throw GENERIC_LOGIN_ERROR();
 
-  const refreshToken = await issueRefreshRow(user.id, randomUUID());
+  let refreshToken: string;
+  try {
+    refreshToken = await issueRefreshRow(user.id, randomUUID());
+  } catch (err) {
+    if (isMissingUserDuringTokenIssue(err)) throw GENERIC_LOGIN_ERROR();
+    throw err;
+  }
   return {
     user: { id: user.id, email: user.email, consentedAt: user.consentedAt },
     refreshToken,
@@ -144,8 +173,9 @@ export async function rotateRefreshToken(
         data: { revokedAt: new Date() },
       });
       if (revoked.count !== 1) {
-        // Lost the race — the token was revoked between our read and write.
-        throw new RotationRaceError();
+      // Lost a same-token concurrent rotation race. Do not revoke the family:
+      // the winner may already have issued a fresh token in that family.
+      throw new RotationRaceError();
       }
       const raw = generateRefreshToken();
       const expiresAt = new Date(Date.now() + durationToSeconds(config.REFRESH_TOKEN_TTL) * 1000);
@@ -160,9 +190,13 @@ export async function rotateRefreshToken(
     });
   } catch (err) {
     if (err instanceof RotationRaceError) {
-      // A concurrent rotation already consumed this token → treat as reuse.
-      await revokeFamily(row.familyId);
+      // Same-token concurrent loser. Reject this request, but keep the winner's
+      // new token usable. True later replay still hits `row.revokedAt` above and
+      // revokes the family as theft response.
       throw unauthorized("TOKEN_REUSE", "Refresh token reuse detected");
+    }
+    if (isMissingUserDuringTokenIssue(err)) {
+      throw unauthorized("INVALID_REFRESH_TOKEN", "Refresh token is invalid or expired");
     }
     throw err;
   }
@@ -189,8 +223,46 @@ export async function revokeRefreshToken(rawToken: string): Promise<void> {
 
 /** Fetch the public user resource by id (for GET /auth/me). */
 export async function getPublicUser(userId: string): Promise<PublicUser | null> {
-  return prisma.user.findUnique({
-    where: { id: userId },
-    select: { id: true, email: true, consentedAt: true },
-  });
+  return withUserContext(userId, (tx) =>
+    tx.user.findUnique({
+      where: { id: userId },
+      select: { id: true, email: true, consentedAt: true },
+    }),
+  );
+}
+
+/**
+ * Delete the current user's account under RLS. The schema owns child-row
+ * removal through ON DELETE CASCADE so this stays aligned with the data model:
+ * accounts, transactions, budgets, anomalies, consents, and refresh tokens all
+ * disappear with the user row.
+ */
+export async function deleteUserAccount(
+  userId: string,
+  input: DeleteAccountInput,
+): Promise<DeleteAccountResult> {
+  const user = await withUserContext(userId, (tx) =>
+    tx.user.findUnique({ where: { id: userId }, select: { passwordHash: true } }),
+  );
+  if (!user) throw unauthorized("UNAUTHENTICATED", "Authentication required");
+
+  const ok = await argon2.verify(user.passwordHash, input.currentPassword).catch(() => false);
+  if (!ok) throw unauthorized("DELETE_REAUTH_FAILED", "Current password is required to delete this account");
+
+  try {
+    await withUserContext(userId, async (tx) => {
+      await tx.user.delete({ where: { id: userId } });
+    });
+  } catch (err) {
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2025") {
+      throw unauthorized("UNAUTHENTICATED", "Authentication required");
+    }
+    throw err;
+  }
+
+  return {
+    deleted: true,
+    message: "Your Clarifi account and user-owned Clarifi data have been deleted.",
+    llmProviderLogHandling: LLM_PROVIDER_LOG_HANDLING_NOTE,
+  };
 }
