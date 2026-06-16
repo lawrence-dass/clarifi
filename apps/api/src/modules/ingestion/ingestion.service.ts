@@ -8,6 +8,7 @@ import {
 } from "@clarifi/shared";
 import { parseCsvStatement } from "./csv-adapter.js";
 import { BANK_PROFILES, type BankFormat } from "./bank-profiles.js";
+import { requestCategorization } from "../../queues/categorize.outbox.js";
 
 const TRANSACTION_BATCH_SIZE = 1_000;
 
@@ -47,7 +48,7 @@ export async function importCsv(input: ImportCsvInput): Promise<ImportResult> {
     .update(`${input.userId}:${institutionIdentity}`)
     .digest("hex");
 
-  return withUserContext(input.userId, async (tx) => {
+  const result = await withUserContext(input.userId, async (tx) => {
     const account = await tx.account.upsert({
       where: { provider_providerAccountId: { provider: Provider.csv, providerAccountId } },
       create: {
@@ -102,6 +103,12 @@ export async function importCsv(input: ImportCsvInput): Promise<ImportResult> {
       malformed: errors,
     };
   });
+
+  if (result.imported > 0) {
+    await requestCategorization({ userId: input.userId, accountId: result.accountId });
+  }
+
+  return result;
 }
 
 function normalizeInstitutionIdentity(institution: string): string {

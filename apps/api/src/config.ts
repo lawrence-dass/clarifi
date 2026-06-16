@@ -10,9 +10,16 @@ const EnvSchema = z.object({
   API_PORT: z.coerce.number().int().positive().default(4000),
   WEB_ORIGIN: z.string().url().default("http://localhost:3000"),
   DATABASE_URL: z.string().min(1).optional(),
+  REDIS_URL: z.string().min(1).optional(),
   // Access-token JWT signing secret — required (auth depends on it). Min 32
   // chars so a weak/placeholder value can't reach production.
   JWT_ACCESS_SECRET: z.string().min(32),
+  ANTHROPIC_API_KEY: z
+    .string()
+    .optional()
+    .transform((value) => (value && value.length > 0 ? value : undefined)),
+  CATEGORIZATION_MODEL: z.string().min(1).default("claude-haiku-4-5"),
+  CATEGORIZE_BATCH_SIZE: z.coerce.number().int().positive().max(100).default(25),
   // Token lifetimes. Validated to the exact grammar durationToSeconds accepts
   // (positive integer + s/m/h/d) so a value only one parser would accept can't
   // reach runtime and crash login. There is no separate JWT_REFRESH_SECRET:

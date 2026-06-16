@@ -5,18 +5,22 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/server.ts",
+    "worker": "tsx watch src/worker.ts",
     "build": "tsc",
     "start": "node dist/server.js",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.104.2",
     "@clarifi/shared": "workspace:*",
     "argon2": "^0.44.0",
+    "bullmq": "^5.78.1",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "express": "^4.21.2",
     "helmet": "^8.0.0",
+    "ioredis": "^5.11.1",
     "jose": "^6.2.3",
     "multer": "^2.2.0",
     "papaparse": "^5.5.3",

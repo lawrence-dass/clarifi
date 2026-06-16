@@ -1,8 +1,16 @@
-import { afterAll, describe, expect, it } from "vitest";
+import { afterAll, describe, expect, it, vi } from "vitest";
 import { randomUUID } from "node:crypto";
 import request from "supertest";
 import { prisma, TransactionDirection } from "@clarifi/shared";
 import { createApp } from "../../app.js";
+
+const mocks = vi.hoisted(() => ({
+  requestCategorization: vi.fn(async () => undefined),
+}));
+
+vi.mock("../../queues/categorize.outbox.js", () => ({
+  requestCategorization: mocks.requestCategorization,
+}));
 
 const dbUrl = process.env.DATABASE_URL ?? "";
 const hasDb = dbUrl.length > 0 && !dbUrl.includes("placeholder");
@@ -72,6 +80,10 @@ describe.skipIf(!hasDb)("POST /transactions/import (e2e)", () => {
     const payroll = rows.find((r) => r.rawDescription === "PAYROLL");
     expect(payroll?.amountCents).toBe(200000n);
     expect(payroll?.direction).toBe(TransactionDirection.credit);
+    expect(mocks.requestCategorization).toHaveBeenCalledWith({
+      userId: expect.any(String),
+      accountId: res.body.accountId,
+    });
   });
 
   it("re-uploading the same statement adds no duplicates (AC #4)", async () => {
