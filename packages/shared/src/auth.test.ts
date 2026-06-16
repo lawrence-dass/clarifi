@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { RegisterInput } from "./auth.js";
+import { RegisterInput, LoginInput } from "./auth.js";
 
 // Pure schema unit tests — no DB, always run in CI.
 describe("RegisterInput", () => {
@@ -51,5 +51,23 @@ describe("RegisterInput", () => {
   it("rejects a password longer than 128 characters (argon2 DoS guard)", () => {
     expect(RegisterInput.safeParse({ ...valid, password: "a".repeat(129) }).success).toBe(false);
     expect(RegisterInput.safeParse({ ...valid, password: "a".repeat(128) }).success).toBe(true);
+  });
+});
+
+describe("LoginInput", () => {
+  it("accepts a valid login body and normalizes the email", () => {
+    const parsed = LoginInput.parse({ email: "  User@Example.com ", password: "x" });
+    expect(parsed.email).toBe("user@example.com");
+    expect(parsed.password).toBe("x");
+  });
+
+  it("does NOT apply the registration password policy (any non-empty password)", () => {
+    // A short password that RegisterInput rejects must still be accepted at login.
+    expect(LoginInput.safeParse({ email: "a@b.com", password: "short" }).success).toBe(true);
+  });
+
+  it("rejects a missing email or empty password", () => {
+    expect(LoginInput.safeParse({ password: "x" }).success).toBe(false);
+    expect(LoginInput.safeParse({ email: "a@b.com", password: "" }).success).toBe(false);
   });
 });

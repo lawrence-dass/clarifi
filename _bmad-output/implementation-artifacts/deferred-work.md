@@ -1,5 +1,14 @@
 # Deferred Work
 
+## Deferred from: code review of story-1.3 (2026-06-15)
+
+- **Rate limiting / lockout on `/auth/login` + `/auth/refresh`** — credential stuffing, brute force, argon2 DoS. Extends the rate-limit middleware already deferred from Story 1.2. [apps/api/src/modules/auth/auth.routes.ts]
+- **CSRF token + Origin/Referer check on cookie-auth POSTs** — SameSite=Strict covers cross-site CSRF for the same-site topology today; add a CSRF token when the web client lands (pairs with the SameSite cross-domain item). [apps/api/src/modules/auth]
+- **Access-token revocation window** — logout / family-revoke / account-deletion don't cut an already-issued access JWT for up to its 15m TTL; `requireAuth` trusts `req.userId` without a user-existence check (a deleted user passes on future protected routes). Revisit with a `jti` denylist / shorter TTL / per-request user check — important for Story 1.6 (PIPEDA deletion). [apps/api/src/middleware/auth.ts]
+- **Expired/revoked `refresh_tokens` cleanup job** — unbounded row growth + data-minimization smell; add a scheduled `DELETE WHERE expires_at < now() OR revoked_at IS NOT NULL`. [a sweeper / cron]
+- **Session sprawl on re-login** — `/auth/login` doesn't revoke the prior family; no "revoke all sessions" hook (e.g. on password change). [apps/api/src/modules/auth/auth.service.ts loginUser]
+- **Auth-hardening bundle** — SameSite cross-registrable-domain caveat (switch to lax/none + CSRF if web & API end up on different sites in prod); `secure` gated on NODE_ENV (ensure staging is HTTPS); add JWT `iss`/`aud`; log (don't swallow) unexpected argon2 verify errors. [apps/api/src/modules/auth/cookies.ts, tokens.ts, auth.service.ts]
+
 ## Deferred from: code review of story-1.2 (2026-06-15)
 
 - **Rate limiting on auth routes** — `/auth/register` has no rate limit (email-enumeration amplifier + argon2 64 MiB DoS surface). Architecture plans `apps/api/src/middleware/rate-limit.ts`. Add it as a cross-cutting middleware (login Story 1.3 or Epic 8). [apps/api/src/modules/auth/auth.routes.ts]

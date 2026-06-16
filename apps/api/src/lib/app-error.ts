@@ -24,3 +24,7 @@ export function badRequest(code: string, message: string, details?: unknown): Ap
 export function conflict(code: string, message: string, details?: unknown): AppError {
   return new AppError(code, 409, message, details);
 }
+
+export function unauthorized(code: string, message: string, details?: unknown): AppError {
+  return new AppError(code, 401, message, details);
+}

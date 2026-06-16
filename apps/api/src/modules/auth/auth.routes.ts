@@ -1,10 +1,15 @@
 import { Router } from "express";
-import { register } from "./auth.controller.js";
+import { register, login, refresh, logout, me } from "./auth.controller.js";
+import { requireAuth } from "../../middleware/auth.js";
 
 /**
- * Auth routes. Mounted at /auth in createApp(). Login + token rotation
- * (POST /auth/login, /auth/refresh) land in Story 1.3.
+ * Auth routes, mounted at /auth in createApp(). The refresh cookie is
+ * path-scoped to /auth, so /refresh and /logout receive it.
  */
 export const authRouter: Router = Router();
 
 authRouter.post("/register", register);
+authRouter.post("/login", login);
+authRouter.post("/refresh", refresh);
+authRouter.post("/logout", logout);
+authRouter.get("/me", requireAuth, me);

@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-06-15
-last_updated: 2026-06-15 (story 1.2 done — code-reviewed, all patches applied)
+last_updated: 2026-06-15 (story 1.3 done — implemented + code-reviewed, all patches applied)
 project: Clarifi
 project_key: NOKEY
 tracking_system: file-system
@@ -46,7 +46,7 @@ development_status:
   epic-1: in-progress
   1-1-persistence-foundation-rls-enablement: done
   1-2-user-registration-with-email-pipeda-consent: done
-  1-3-user-login-with-jwt-and-refresh-rotation: backlog
+  1-3-user-login-with-jwt-and-refresh-rotation: done
   1-4-csv-statement-upload-canonical-parsing: backlog
   1-5-idempotent-ingestion-duplicate-detection: backlog
   1-6-account-data-deletion-pipeda: backlog

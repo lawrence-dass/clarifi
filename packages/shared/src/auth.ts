@@ -19,10 +19,26 @@ import { z } from "zod";
  *   input (hashing is intentionally expensive, so unbounded input is a DoS vector).
  * - `consent`: must be exactly `true` (PIPEDA explicit consent at signup).
  */
+// Shared email rule: trimmed, lowercased, RFC-5321-bounded. ASCII-only via
+// `.email()`, so accepted addresses are already Unicode-normalized.
+const emailField = z.string().trim().toLowerCase().email().max(254);
+
 export const RegisterInput = z.object({
-  email: z.string().trim().toLowerCase().email().max(254),
+  email: emailField,
   password: z.string().min(12).max(128),
   consent: z.literal(true),
 });
 
 export type RegisterInput = z.infer<typeof RegisterInput>;
+
+/**
+ * Login request body. Deliberately NOT subject to the registration password
+ * policy (min 12 / max 128): login must accept whatever was previously stored
+ * and reveal nothing about the policy. Just require a non-empty string.
+ */
+export const LoginInput = z.object({
+  email: emailField,
+  password: z.string().min(1),
+});
+
+export type LoginInput = z.infer<typeof LoginInput>;
