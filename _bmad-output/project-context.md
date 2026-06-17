@@ -40,3 +40,16 @@ code itself.
   relevant shard (e.g. `planning-artifacts/epics/epic-2-smart-categorization.md`).
 - Completed Epic-1 story files live in `archive/epic-1-completed/`; their `epics.md#…` /
   `architecture.md#…` anchors are historical and intentionally left unmigrated.
+
+## Learnings from Story 2.2 (merchant cache) — 2026-06-16
+
+- The merchant cache (`apps/api/src/modules/categorization/merchant-cache.ts`, Redis) has
+  **no invalidation path** — entries only expire via a 30-day TTL or get overwritten by a
+  new LLM categorization. **Story 2.3 (override & correction learning) must add a cache
+  update/invalidate hook** so a user override immediately beats the cached/LLM category
+  for that merchant and re-seeds the cache reflecting the correction. Guardrail: a `user`
+  override always wins (`category_source` provenance).
+- Normalization treats person-to-person transfers/payments as non-merchant (returns
+  `null`) and strips the holder name, so names never reach `merchantName` or the cache
+  key. Don't reintroduce a path that derives a merchant from `PAYMENT/TRANSFER … TO/FROM
+  <name>` or Interac/e-transfer strings (AC #6 / PIPEDA).
