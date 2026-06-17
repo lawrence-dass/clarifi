@@ -169,38 +169,33 @@ Before showing drafts, verify the following. If any check fails, fix the draft b
 
 ---
 
-## Step 4: Show Drafts and Confirm
+## Step 4: Write the Handover (no approval gate)
 
-Present both drafts clearly — the story file section and the CURRENT.md — in a single message. Ask:
+Write the handover **automatically — do NOT ask the user to approve first.** The Step 3
+quality checks are your self-review; if any fail, fix the draft, then write. Report what
+was written in Step 7.
 
-> "Approve writing these updates? Reply **yes**, **no**, or describe what to change."
-
-- **yes** → proceed to Step 5
-- **no** → discard and exit
-- anything else → treat as edit instructions, revise, re-show, ask again
+Exception: only pause for review if the user's `/session-end` invocation explicitly asks
+to review/confirm first (e.g. "let me review"). Otherwise proceed straight to writing.
 
 ---
 
-## Step 5: Collect Cross-Story Learnings (Mode 2 only)
+## Step 5: Cross-Story Learnings (non-blocking)
 
-Before writing any files, ask:
+Do **not** block on a prompt. If this session produced a clear, durable cross-story
+learning — something a future story needs that isn't already in the code, CLAUDE.md, or
+the architecture docs — append it automatically to `_bmad-output/project-context.md`
+under a dated heading `## Learnings from Story {story-id} — {YYYY-MM-DD}`, and add
+`- project-context.md: _bmad-output/project-context.md` to the CURRENT.md References.
 
-> "Any cross-story learnings to add to `project-context.md`? These will be loaded automatically by all future stories. (yes / no)"
-
-If **yes**:
-- Ask: "What is the learning?"
-- Draft a concise addition to `_bmad-output/project-context.md` under a dated heading: `## Learnings from Story {story-id} — {YYYY-MM-DD}`
-- If `_bmad-output/project-context.md` does not exist yet, create it with a one-line title (`# Clarifi — Cross-Story Learnings`) before appending
-- Show the draft and confirm with the user
-- On approval, add `- project-context.md: _bmad-output/project-context.md` to the **References** section of the CURRENT.md draft before writing it
-
-If **no**, proceed to Step 6 immediately.
+- If `project-context.md` does not exist yet, create it with a `# Clarifi — Cross-Story Learnings` title first.
+- If there is no clear durable learning, skip this step.
 
 ---
 
 ## Step 6: Write Files
 
-On confirmation (from Step 4), write in this order:
+Write in this order:
 
 1. **Story file** — update Dev Agent Record section (and Status + File List if Mode 2). Only modify those sections; leave everything else untouched.
 2. **`sprint-status.yaml`** — if Mode 2 (story complete), set `development_status[{story-key}]: review`. Skip for Mode 1.
