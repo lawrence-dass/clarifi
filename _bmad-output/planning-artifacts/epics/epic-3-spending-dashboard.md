@@ -53,3 +53,34 @@ So that I can control spending.
 **When** I set a monthly limit (integer cents)
 **Then** a Budget row is created for that category/month and progress is shown as spent/limit
 **And** progress recomputes as new transactions arrive.
+
+<!-- Stories 3.5–3.6 added 2026-06-17: stories 3.1–3.4 were scoped backend-only,
+deferring this epic's frontend deliverable (FR13–FR17 include rendering). These
+decompose the deferred UI into a web foundation plus the dashboard views. The
+architecture has no standalone UI epic — each feature epic owns its frontend slice. -->
+
+## Story 3.5: Web app foundation & shell
+
+As a user,
+I want to sign in and land in an authenticated app shell,
+So that I can reach the spending dashboard and other features.
+
+**Acceptance Criteria:**
+
+**Given** a registered user
+**When** they sign in through the web app
+**Then** the session is established via the existing httpOnly-cookie auth and protected pages are reachable
+**And** the app provides the shared client foundation (data-fetching provider, API client, charting + UI primitives, loading/error conventions) the dashboard and later feature UIs build on.
+
+## Story 3.6: Spending dashboard UI
+
+As a user,
+I want a dashboard that renders my category breakdown, spending trend, cash-flow summary, and budgets,
+So that I can actually see where my money goes.
+
+**Acceptance Criteria:**
+
+**Given** authenticated transaction data
+**When** I open the dashboard
+**Then** the Story 3.1–3.4 APIs are rendered (per-currency category donut, 6-month trend, income/expense + top merchants + MoM deltas, and budget progress)
+**And** money is formatted at the display layer only, per currency, with loading/error/empty states.
