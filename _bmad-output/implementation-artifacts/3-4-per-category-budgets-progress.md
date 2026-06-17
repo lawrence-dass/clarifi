@@ -14,7 +14,7 @@ context:
 
 # Story 3.4: Per-category budgets & progress (API)
 
-Status: ready-for-dev
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -40,30 +40,30 @@ so that I can control my spending.
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Budgets module + routes (AC: #1, #4)
-  - [ ] Create `apps/api/src/modules/budgets/` with `budgets.routes.ts`, `budgets.controller.ts`, `budgets.service.ts` (route → controller → service → Prisma).
-  - [ ] `budgetsRouter`: `PUT /` and `GET /`, both behind `requireAuth`. Mount in `apps/api/src/app.ts` at `/budgets` (new resource — one import + one `app.use`, keeping the error middleware last).
+- [x] Task 1: Budgets module + routes (AC: #1, #4)
+  - [x] Create `apps/api/src/modules/budgets/` with `budgets.routes.ts`, `budgets.controller.ts`, `budgets.service.ts` (route → controller → service → Prisma).
+  - [x] `budgetsRouter`: `PUT /` and `GET /`, both behind `requireAuth`. Mount in `apps/api/src/app.ts` at `/budgets` (new resource — one import + one `app.use`, keeping the error middleware last).
 
-- [ ] Task 2: Set-budget upsert (AC: #1, #2, #3)
-  - [ ] Controller `putBudget`: guard `req.userId` (`unauthorized`); Zod-parse `{ category: z.nativeEnum(Category), month: MonthParam, monthlyLimitCents: positive int }`. Reuse the shared `MonthParam` regex (export it from the transactions controller or lift it to a shared spot). On failure → `badRequest`.
-  - [ ] Service `upsertBudget({ userId, category, month, monthlyLimitCents })`: inside `withUserContext(userId)`, `tx.budget.upsert({ where: { userId_category_month: { userId, category, month } }, create: { userId, category, month, monthlyLimitCents }, update: { monthlyLimitCents } })`. `userId` comes from the authenticated session, never the body. Store `monthlyLimitCents` as `BigInt`.
-  - [ ] Return `{ id, category, month, monthlyLimitCents }` (cents as JSON-safe integer).
+- [x] Task 2: Set-budget upsert (AC: #1, #2, #3)
+  - [x] Controller `putBudget`: guard `req.userId` (`unauthorized`); Zod-parse `{ category: z.nativeEnum(Category), month: MonthParam, monthlyLimitCents: positive int }`. Reuse the shared `MonthParam` regex (export it from the transactions controller or lift it to a shared spot). On failure → `badRequest`.
+  - [x] Service `upsertBudget({ userId, category, month, monthlyLimitCents })`: inside `withUserContext(userId)`, `tx.budget.upsert({ where: { userId_category_month: { userId, category, month } }, create: { userId, category, month, monthlyLimitCents }, update: { monthlyLimitCents } })`. `userId` comes from the authenticated session, never the body. Store `monthlyLimitCents` as `BigInt`.
+  - [x] Return `{ id, category, month, monthlyLimitCents }` (cents as JSON-safe integer).
 
-- [ ] Task 3: Budgets-with-progress read (AC: #4, #5, #6, #8)
-  - [ ] Service `budgetsWithProgress({ userId, month })`: inside one `withUserContext(userId)`, (a) fetch the user's budgets for `month`, and (b) get that month's per-currency category spend via the **shared** `aggregateCategorySpendByCurrency` helper. Run sequentially (no `Promise.all` in the tx callback — Story 3.2 lesson).
-  - [ ] For each budget, `spentCents` = the CAD category total for that month (0 if none); compute `remainingCents` and `percentUsed`. Money stays `bigint` until the response boundary.
+- [x] Task 3: Budgets-with-progress read (AC: #4, #5, #6, #8)
+  - [x] Service `budgetsWithProgress({ userId, month })`: inside one `withUserContext(userId)`, (a) fetch the user's budgets for `month`, and (b) get that month's per-currency category spend via the **shared** `aggregateCategorySpendByCurrency` helper. Run sequentially (no `Promise.all` in the tx callback — Story 3.2 lesson).
+  - [x] For each budget, `spentCents` = the CAD category total for that month (0 if none); compute `remainingCents` and `percentUsed`. Money stays `bigint` until the response boundary.
 
-- [ ] Task 4: Reuse the shared aggregation (AC: #5)
-  - [ ] Export `aggregateCategorySpendByCurrency` from `transactions.service.ts` (currently private) and import it in the budgets service — do not duplicate the category-spend grouping. This is a behavior-preserving change; re-run the 3.1/3.3 transactions tests to confirm no regression.
+- [x] Task 4: Reuse the shared aggregation (AC: #5)
+  - [x] Export `aggregateCategorySpendByCurrency` from `transactions.service.ts` (currently private) and import it in the budgets service — do not duplicate the category-spend grouping. This is a behavior-preserving change; re-run the 3.1/3.3 transactions tests to confirm no regression.
 
-- [ ] Task 5: Money serialization (AC: #5, #7)
-  - [ ] Reuse `toSafeIntegerCents` for positive magnitudes (`monthlyLimitCents`, `spentCents`). `remainingCents = monthlyLimitCents - spentCents` derived from already-safe integers (signed; do NOT abs-value via `toSafeIntegerCents`). `percentUsed = limit === 0 ? 0 : Math.round((spent * 100) / limit)` in integer space. No float/dollar math.
+- [x] Task 5: Money serialization (AC: #5, #7)
+  - [x] Reuse `toSafeIntegerCents` for positive magnitudes (`monthlyLimitCents`, `spentCents`). `remainingCents = monthlyLimitCents - spentCents` derived from already-safe integers (signed; do NOT abs-value via `toSafeIntegerCents`). `percentUsed = limit === 0 ? 0 : Math.round((spent * 100) / limit)` in integer space. No float/dollar math.
 
-- [ ] Task 6: Tests & verification (AC: #1–#9)
-  - [ ] Add `apps/api/src/modules/budgets/budgets.routes.test.ts` (Supertest), reusing the register/login cookie harness and `hasDb` skip.
-  - [ ] Cover upsert create+update (assert single row, updated limit), validation 400s, 401, progress math (under/at/over), spent isolation (month/currency/inflow/removed), `limit=0`, and tenant isolation.
-  - [ ] Add a service test if the progress math benefits from one. Confirm the existing transactions tests still pass after exporting the shared helper.
-  - [ ] Run `pnpm --filter @clarifi/api typecheck` and the budgets + transactions tests. If DB tests hit the 5s timeout, rerun with `--testTimeout=40000 --hookTimeout=40000`.
+- [x] Task 6: Tests & verification (AC: #1–#9)
+  - [x] Add `apps/api/src/modules/budgets/budgets.routes.test.ts` (Supertest), reusing the register/login cookie harness and `hasDb` skip.
+  - [x] Cover upsert create+update (assert single row, updated limit), validation 400s, 401, progress math (under/at/over), spent isolation (month/currency/inflow/removed), `limit=0`, and tenant isolation.
+  - [x] Add a service test if the progress math benefits from one. Confirm the existing transactions tests still pass after exporting the shared helper.
+  - [x] Run `pnpm --filter @clarifi/api typecheck` and the budgets + transactions tests. If DB tests hit the 5s timeout, rerun with `--testTimeout=40000 --hookTimeout=40000`.
 
 ## Dev Notes
 
@@ -152,12 +152,43 @@ New `apps/api/src/modules/budgets/` + a one-line mount in `app.ts` + exporting o
 
 ### Agent Model Used
 
+GPT-5 Codex
+
 ### Debug Log References
+
+- Red-first targeted run: `set -a; source .env; set +a; pnpm --filter @clarifi/api exec vitest run src/modules/budgets/budgets.service.test.ts src/modules/budgets/budgets.routes.test.ts --testTimeout=40000 --hookTimeout=40000` failed as expected before implementation: missing `budgets.service.js` and `/budgets` returned 404.
+- Green budgets run: same budgets-only command passed after implementation: 2 files, 8 tests.
+- Required typecheck gate passed on 2026-06-17: `pnpm --filter @clarifi/api typecheck` (`tsc --noEmit`). Existing Node engine warning remains: wanted `>=20.19`, current shell `v20.16.0`.
+- Required focused regression gate passed on 2026-06-17: `set -a; source .env; set +a; pnpm --filter @clarifi/api exec vitest run src/modules/budgets/budgets.service.test.ts src/modules/budgets/budgets.routes.test.ts src/modules/transactions/transactions.service.test.ts src/modules/transactions/transactions.routes.test.ts --testTimeout=40000 --hookTimeout=40000` — 4 files, 25 tests passed.
 
 ### Completion Notes List
 
+- Implemented `PUT /budgets` and `GET /budgets` in a new budgets module mounted at `/budgets`, both protected by `requireAuth`.
+- Upsert runs inside `withUserContext(req.userId)` and writes `userId` from the authenticated session into both the compound key and create data; the request body `userId` is ignored. This preserves the RLS `WITH CHECK` requirement.
+- Added read-time budget progress inside one `withUserContext` with sequential queries: budget read first, then the shared category-spend aggregation. No `where.userId` tenancy filter is used.
+- Exported and reused `aggregateCategorySpendByCurrency` from the transactions service. Existing 3.1/3.3 transaction tests pass after the helper export.
+- Lifted `MonthParam` to `apps/api/src/lib/month-param.ts` so budgets and transactions reuse the same month validation without controller-to-controller coupling.
+- Money stays in integer cents: `monthlyLimitCents` and `spentCents` are positive magnitudes, `remainingCents` is signed by subtraction, and `percentUsed` is integer BigInt arithmetic with a zero-limit guard. No float/dollar math.
+- Budget progress uses CAD spend only and labels `currency: "CAD"`; USD spend in the same category is excluded rather than folded into CAD.
+- Code review found two patch-level quality gaps: month schema coupling and missing explicit tests for live recompute/unbudgeted-category absence. Both were fixed before the final verification run.
+- AC traceability: route tests cover create/update no duplicate, malicious body `userId` ignored, validation 400s, 401s, under/exact/over budget progress, negative `remainingCents`, month/currency/inflow/removed/tenant exclusions, live recompute, and unbudgeted category absence. Service tests cover RLS query shape, `where.userId` absence, CAD-only spend, zero-limit guard, and authenticated-user upsert data.
+- Guardrail tripwire: `git status --short` shows only story/sprint files, `app.ts`, `apps/api/src/lib/month-param.ts`, `apps/api/src/modules/budgets/*`, and transaction controller/service helper exports. No Prisma schema, migration, ingestion, idempotency, LLM, or frontend files were touched.
+
 ### File List
+
+- `_bmad-output/implementation-artifacts/3-4-per-category-budgets-progress.md`
+- `_bmad-output/implementation-artifacts/sprint-status.yaml`
+- `apps/api/src/app.ts`
+- `apps/api/src/lib/month-param.ts`
+- `apps/api/src/modules/budgets/budgets.controller.ts`
+- `apps/api/src/modules/budgets/budgets.routes.ts`
+- `apps/api/src/modules/budgets/budgets.service.ts`
+- `apps/api/src/modules/budgets/budgets.routes.test.ts`
+- `apps/api/src/modules/budgets/budgets.service.test.ts`
+- `apps/api/src/modules/transactions/transactions.controller.ts`
+- `apps/api/src/modules/transactions/transactions.service.ts`
 
 ## Change Log
 
 - 2026-06-17: Story created (ready-for-dev). Scope is the backend per-category monthly budget API — upsert a limit (RLS write, integer cents) and read budgets with read-time progress (spent vs limit) reusing the shared category-spend aggregation. Budget table + RLS already exist (no migration). UI deferred. Not implemented.
+- 2026-06-17: Implemented, reviewed, fixed review findings, and verified Story 3.4. Added budgets API, shared month validation, shared category aggregation reuse, DB-backed route tests, service tests, and final typecheck + focused budgets/transactions evidence.

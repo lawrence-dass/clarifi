@@ -1,9 +1,8 @@
 import type { NextFunction, Request, Response } from "express";
 import { z } from "zod";
 import { badRequest, unauthorized } from "../../lib/app-error.js";
+import { MonthParam } from "../../lib/month-param.js";
 import { cashFlowSummary, categoryBreakdown, spendingTrend } from "./transactions.service.js";
-
-const MonthParam = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/);
 
 const CategoryBreakdownQuery = z.object({
   month: MonthParam,

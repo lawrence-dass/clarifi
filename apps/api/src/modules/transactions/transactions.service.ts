@@ -81,7 +81,7 @@ interface CurrencyBucket {
   currency: string;
 }
 
-interface CategorySpendRow {
+export interface CategorySpendRow {
   currency: string;
   category: Category;
   totalCents: bigint;
@@ -377,7 +377,7 @@ function compareCurrencyBuckets(a: CurrencyBucket, b: CurrencyBucket): number {
   return a.currency.localeCompare(b.currency);
 }
 
-async function aggregateCategorySpendByCurrency(
+export async function aggregateCategorySpendByCurrency(
   tx: Prisma.TransactionClient,
   range: { monthStart: Date; nextMonthStart: Date },
 ): Promise<CategorySpendRow[]> {
