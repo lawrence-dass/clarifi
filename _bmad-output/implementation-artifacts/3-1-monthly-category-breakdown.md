@@ -1,6 +1,6 @@
 ---
 risk_tier: 3
-baseline_commit: 7f343b79a91a294980c01059cf86dd459e243121
+baseline_commit: 873abf668abd0ee96bdd9f9567b7ab5eebd33672
 context:
   - _bmad-output/planning-artifacts/epics/epic-3-spending-dashboard.md#Story 3.1
   - _bmad-output/planning-artifacts/epics/requirements-inventory.md#Functional Requirements
@@ -13,7 +13,7 @@ context:
 
 # Story 3.1: Monthly category breakdown (aggregation API)
 
-Status: ready-for-dev
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -39,30 +39,30 @@ so that I can see my biggest spending categories.
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Transactions module + route (AC: #1, #6)
-  - [ ] Create `apps/api/src/modules/transactions/` with `transactions.routes.ts`, `transactions.controller.ts`, `transactions.service.ts` (route → controller → service → Prisma, per the layering rule).
-  - [ ] Register `GET /category-breakdown` behind `requireAuth` on a new `transactionsAnalyticsRouter`.
-  - [ ] Mount it in `apps/api/src/app.ts` at `/transactions` alongside the existing ingestion-owned router. Method/path do not collide (`GET /category-breakdown` vs `POST /import`, `PATCH /:transactionId/category`); a non-matching request falls through to the next router. Document this as a deliberate structural variance (see Project Structure Notes).
+- [x] Task 1: Transactions module + route (AC: #1, #6)
+  - [x] Create `apps/api/src/modules/transactions/` with `transactions.routes.ts`, `transactions.controller.ts`, `transactions.service.ts` (route → controller → service → Prisma, per the layering rule).
+  - [x] Register `GET /category-breakdown` behind `requireAuth` on a new `transactionsAnalyticsRouter`.
+  - [x] Mount it in `apps/api/src/app.ts` at `/transactions` alongside the existing ingestion-owned router. Method/path do not collide (`GET /category-breakdown` vs `POST /import`, `PATCH /:transactionId/category`); a non-matching request falls through to the next router. Document this as a deliberate structural variance (see Project Structure Notes).
 
-- [ ] Task 2: Aggregation service (AC: #2, #3, #4, #5, #7, #8)
-  - [ ] In `transactions.service.ts`, export `categoryBreakdown(input: { userId: string; month: string }): Promise<CategoryBreakdownResult>`.
-  - [ ] Compute the half-open month range `[monthStart, nextMonthStart)` from `month` (see Dev Notes for the timezone decision).
-  - [ ] Run a **single** `withUserContext(userId, (tx) => tx.transaction.groupBy(...))` grouped by `["currency", "category"]` with `_sum: { amountCents: true }` and `_count: { _all: true }`, filtering `date` in range, `direction: debit` (or `amountCents: { lt: 0 }`), `status: { not: removed }`, and `category: { not: null }`. RLS supplies the user filter — do not add `where: { userId }` as the tenancy guard.
-  - [ ] Shape grouped rows into per-currency buckets; magnitudes are `-sum` (positive); sort categories desc by `totalCents`; compute each bucket's `totalCents` from its own rows only — never across currencies.
+- [x] Task 2: Aggregation service (AC: #2, #3, #4, #5, #7, #8)
+  - [x] In `transactions.service.ts`, export `categoryBreakdown(input: { userId: string; month: string }): Promise<CategoryBreakdownResult>`.
+  - [x] Compute the half-open month range `[monthStart, nextMonthStart)` from `month` (see Dev Notes for the timezone decision).
+  - [x] Run a **single** `withUserContext(userId, (tx) => tx.transaction.groupBy(...))` grouped by `["currency", "category"]` with `_sum: { amountCents: true }` and `_count: { _all: true }`, filtering `date` in range, `direction: debit` (or `amountCents: { lt: 0 }`), `status: { not: removed }`, and `category: { not: null }`. RLS supplies the user filter — do not add `where: { userId }` as the tenancy guard.
+  - [x] Shape grouped rows into per-currency buckets; magnitudes are `-sum` (positive); sort categories desc by `totalCents`; compute each bucket's `totalCents` from its own rows only — never across currencies.
 
-- [ ] Task 3: Validation, controller, error contract (AC: #1, #6)
-  - [ ] Zod-parse the `month` query param; on failure throw `badRequest("INVALID_MONTH", ...)` (reuse `apps/api/src/lib/app-error.ts`). Guard `req.userId` with `unauthorized(...)` mirroring existing controllers.
-  - [ ] Return the resource data directly (no wrapper), per the success format pattern. Pass all errors to `next(err)`; never leak Prisma internals.
+- [x] Task 3: Validation, controller, error contract (AC: #1, #6)
+  - [x] Zod-parse the `month` query param; on failure throw `badRequest("INVALID_MONTH", ...)` (reuse `apps/api/src/lib/app-error.ts`). Guard `req.userId` with `unauthorized(...)` mirroring existing controllers.
+  - [x] Return the resource data directly (no wrapper), per the success format pattern. Pass all errors to `next(err)`; never leak Prisma internals.
 
-- [ ] Task 4: Money serialization (AC: #2, #5)
-  - [ ] `groupBy._sum.amountCents` is a `bigint`; convert to a JSON-safe **integer number** of cents at the response boundary (values are well within `Number.MAX_SAFE_INTEGER` for realistic monthly sums). Cents stay integers — never divide to dollars here. `currency` always travels with every amount.
-  - [ ] Do not introduce float math anywhere in the path.
+- [x] Task 4: Money serialization (AC: #2, #5)
+  - [x] `groupBy._sum.amountCents` is a `bigint`; convert to a JSON-safe **integer number** of cents at the response boundary (values are well within `Number.MAX_SAFE_INTEGER` for realistic monthly sums). Cents stay integers — never divide to dollars here. `currency` always travels with every amount.
+  - [x] Do not introduce float math anywhere in the path.
 
-- [ ] Task 5: Tests & verification (AC: #1–#9)
-  - [ ] Add `apps/api/src/modules/transactions/transactions.routes.test.ts` (Supertest). Reuse the auth-cookie harness from `category-override.routes.test.ts` (`register` → `login` → cookie) and the `hasDb` skip pattern.
-  - [ ] Seed a fixture with two currencies (CAD + USD), multiple categories, inflow + outflow + `removed` rows, plus a second user's rows in the same month; assert per-currency isolation, descending sort, exclusion of inflows/removed/other-user rows, and integer-cents serialization.
-  - [ ] Cover empty month (`200` empty), invalid `month` (`400`), and unauthenticated (`401`).
-  - [ ] Run `pnpm --filter @clarifi/api typecheck` and the new route test. If DB tests hit the 5s timeout, rerun with `--testTimeout=40000 --hookTimeout=40000`.
+- [x] Task 5: Tests & verification (AC: #1–#9)
+  - [x] Add `apps/api/src/modules/transactions/transactions.routes.test.ts` (Supertest). Reuse the auth-cookie harness from `category-override.routes.test.ts` (`register` → `login` → cookie) and the `hasDb` skip pattern.
+  - [x] Seed a fixture with two currencies (CAD + USD), multiple categories, inflow + outflow + `removed` rows, plus a second user's rows in the same month; assert per-currency isolation, descending sort, exclusion of inflows/removed/other-user rows, and integer-cents serialization.
+  - [x] Cover empty month (`200` empty), invalid `month` (`400`), and unauthenticated (`401`).
+  - [x] Run `pnpm --filter @clarifi/api typecheck` and the new route test. If DB tests hit the 5s timeout, rerun with `--testTimeout=40000 --hookTimeout=40000`.
 
 ## Dev Notes
 
@@ -185,12 +185,54 @@ Structural variance (documented): `/transactions` is served by two routers — t
 
 ### Agent Model Used
 
+GPT-5 Codex
+
 ### Debug Log References
+
+- 2026-06-16: Added `modules/transactions` route/controller/service for `GET /transactions/category-breakdown`.
+- 2026-06-16: Mounted read-only analytics router beside the existing ingestion-owned `/transactions` router without changing write routes.
+- 2026-06-16: Implemented UTC month boundaries, RLS-scoped single `groupBy`, per-currency shaping, descending category sort, and JSON-safe integer-cent response conversion.
+- 2026-06-16: Code review fix: tightened spend filter to require both `direction = debit` and `amountCents < 0`.
+- 2026-06-16: Code review fix: added service guardrail test proving one `groupBy` call, `withUserContext`, currency/category grouping, UTC half-open boundaries, and no `where.userId` tenancy shortcut.
+- 2026-06-16: Code review fix: kept currency bucket accumulation as `bigint` until response-boundary conversion.
 
 ### Completion Notes List
 
+- Implemented backend-only monthly category breakdown API returning `{ month, currencies }` directly.
+- Response groups by currency first and never sums CAD/USD together; categories are sorted by `totalCents` descending inside each currency bucket.
+- Spend filter counts only posted/non-removed, categorized outflows: `direction = debit` and `amountCents < 0`.
+- RLS guardrail is enforced through `withUserContext(userId)`; the aggregation query intentionally has no `where: { userId }`.
+- Money guardrail: all source sums are `bigint` cents, bucket totals stay `bigint` internally, and response fields are JSON-safe integer cents with currency attached.
+- Month boundaries use UTC `[monthStart, nextMonthStart)` as the v1 simplification documented in the story.
+- AC traceability:
+  - AC1: `GET /transactions/category-breakdown > returns isolated per-currency category spending sorted by category total`.
+  - AC2: route success fixture asserts CAD and USD are separate buckets; service test asserts `groupBy` by `["currency", "category"]`.
+  - AC3: route success fixture seeds a second user's same-month matching row and asserts exclusion; service test asserts `withUserContext` and no `where.userId`.
+  - AC4: route fixture includes credit/inflow, removed, null-category, and next-month rows; service test asserts debit and negative-cent filters.
+  - AC5: route success fixture asserts descending category rows, bucket totals, positive integer cents, and transaction counts.
+  - AC6: route tests cover invalid/missing `month` as `400 INVALID_MONTH` and unauthenticated as `401`.
+  - AC7: route test covers empty month returning `200` with empty `currencies`.
+  - AC8: service test proves one grouped aggregation query; implementation uses existing indexed date filter under RLS.
+  - AC9: route and service tests cover the specified success/failure paths with no Redis/LLM.
+- Verification:
+  - `pnpm --filter @clarifi/api typecheck` passed.
+  - `set -a; source .env; set +a; pnpm --filter @clarifi/api exec vitest run src/modules/transactions/transactions.service.test.ts src/modules/transactions/transactions.routes.test.ts --testTimeout=40000 --hookTimeout=40000` passed: 2 files, 5 tests.
+  - `set -a; source .env; set +a; pnpm --filter @clarifi/api exec vitest run --testTimeout=90000 --hookTimeout=90000` passed: 16 files, 111 tests.
+- Guardrail evidence: no schema/migration change; no float/dollar math; no LLM gateway/idempotency/sign-normalization changes; all aggregation sums are per-currency; RLS query uses `withUserContext`.
+- All test commands emitted the existing Node engine warning: package wants Node `>=20.19`, current shell is Node `v20.16.0`.
+
 ### File List
+
+- `_bmad-output/implementation-artifacts/3-1-monthly-category-breakdown.md`
+- `_bmad-output/implementation-artifacts/sprint-status.yaml`
+- `apps/api/src/app.ts`
+- `apps/api/src/modules/transactions/transactions.routes.ts`
+- `apps/api/src/modules/transactions/transactions.controller.ts`
+- `apps/api/src/modules/transactions/transactions.service.ts`
+- `apps/api/src/modules/transactions/transactions.routes.test.ts`
+- `apps/api/src/modules/transactions/transactions.service.test.ts`
 
 ## Change Log
 
 - 2026-06-16: Story created (ready-for-dev). Scope is the backend per-currency category-breakdown aggregation API (RLS, integer cents, never-SUM-across-currencies, < 500ms); dashboard UI deferred to a later Epic 3 story. No schema change. Not implemented.
+- 2026-06-16: Implemented, reviewed, fixed review findings, and marked done after targeted and full API verification passed.

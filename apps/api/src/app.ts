@@ -6,6 +6,7 @@ import pinoHttp from "pino-http";
 import { config } from "./config.js";
 import { authRouter } from "./modules/auth/auth.routes.js";
 import { transactionsRouter } from "./modules/ingestion/ingestion.routes.js";
+import { transactionsAnalyticsRouter } from "./modules/transactions/transactions.routes.js";
 import { errorMiddleware } from "./middleware/error.js";
 
 /**
@@ -35,6 +36,7 @@ export function createApp(): Express {
 
   app.use("/auth", authRouter);
   app.use("/transactions", transactionsRouter);
+  app.use("/transactions", transactionsAnalyticsRouter);
 
   // Central error handler — must be registered last, after all routes.
   app.use(errorMiddleware);

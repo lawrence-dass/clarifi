@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-06-15
-last_updated: 2026-06-16 (story 3.1 ready-for-dev)
+last_updated: 2026-06-16 (story 3.2 done)
 project: Clarifi
 project_key: NOKEY
 tracking_system: file-system
@@ -62,8 +62,8 @@ development_status:
 
   # Epic 3: Spending Dashboard
   epic-3: in-progress
-  3-1-monthly-category-breakdown: ready-for-dev
-  3-2-spending-trend-over-time: backlog
+  3-1-monthly-category-breakdown: done
+  3-2-spending-trend-over-time: done
   3-3-top-merchants-income-vs-expenses-month-over-month: backlog
   3-4-per-category-budgets-progress: backlog
   epic-3-retrospective: optional
