@@ -50,6 +50,7 @@ async function seedTransaction(input: {
   direction: TransactionDirection;
   currency: string;
   category: Category | null;
+  merchantName?: string | null;
   status?: TransactionStatus;
 }) {
   return prisma.transaction.create({
@@ -63,6 +64,7 @@ async function seedTransaction(input: {
       direction: input.direction,
       currency: input.currency,
       rawDescription: `BREAKDOWN TEST ${randomUUID()}`,
+      merchantName: input.merchantName,
       category: input.category,
       categorySource: input.category ? CategorySource.llm : null,
       categoryConfidence: input.category ? 0.9 : null,
@@ -411,6 +413,261 @@ describe.skipIf(!hasDb)("GET /transactions/spending-trend", () => {
     const res = await request(app)
       .get("/transactions/spending-trend")
       .query({ endMonth: "2026-06" });
+
+    expect(res.status).toBe(401);
+  }, 10_000);
+});
+
+describe.skipIf(!hasDb)("GET /transactions/summary", () => {
+  it("returns signed cash-flow summary with isolated currencies, top merchants, and category deltas", async () => {
+    const owner = await authenticate();
+    const other = await authenticate();
+    const cadAccount = await seedAccount(owner.userId, "CAD");
+    const usdAccount = await seedAccount(owner.userId, "USD");
+    const otherAccount = await seedAccount(other.userId, "CAD");
+
+    await seedTransaction({
+      userId: owner.userId,
+      accountId: cadAccount.id,
+      date: "2026-06-01T12:00:00.000Z",
+      amountCents: 500000n,
+      direction: TransactionDirection.credit,
+      currency: "CAD",
+      category: Category.income,
+      merchantName: "Employer",
+    });
+    await seedTransaction({
+      userId: owner.userId,
+      accountId: cadAccount.id,
+      date: "2026-06-02T12:00:00.000Z",
+      amountCents: -3000n,
+      direction: TransactionDirection.debit,
+      currency: "CAD",
+      category: Category.food_and_dining,
+      merchantName: "Loblaws",
+    });
+    await seedTransaction({
+      userId: owner.userId,
+      accountId: cadAccount.id,
+      date: "2026-06-03T12:00:00.000Z",
+      amountCents: -500n,
+      direction: TransactionDirection.debit,
+      currency: "CAD",
+      category: Category.food_and_dining,
+      merchantName: "Loblaws",
+    });
+    await seedTransaction({
+      userId: owner.userId,
+      accountId: cadAccount.id,
+      date: "2026-06-04T12:00:00.000Z",
+      amountCents: -4000n,
+      direction: TransactionDirection.debit,
+      currency: "CAD",
+      category: Category.transport,
+      merchantName: "Uber",
+    });
+    await seedTransaction({
+      userId: owner.userId,
+      accountId: cadAccount.id,
+      date: "2026-06-05T12:00:00.000Z",
+      amountCents: -2200n,
+      direction: TransactionDirection.debit,
+      currency: "CAD",
+      category: Category.food_and_dining,
+      merchantName: "Cafe",
+    });
+    await seedTransaction({
+      userId: owner.userId,
+      accountId: cadAccount.id,
+      date: "2026-06-06T12:00:00.000Z",
+      amountCents: -1000n,
+      direction: TransactionDirection.debit,
+      currency: "CAD",
+      category: Category.housing,
+      merchantName: "Rent",
+    });
+    await seedTransaction({
+      userId: owner.userId,
+      accountId: cadAccount.id,
+      date: "2026-06-07T12:00:00.000Z",
+      amountCents: -900n,
+      direction: TransactionDirection.debit,
+      currency: "CAD",
+      category: Category.health,
+      merchantName: "Pharmacy",
+    });
+    await seedTransaction({
+      userId: owner.userId,
+      accountId: cadAccount.id,
+      date: "2026-06-08T12:00:00.000Z",
+      amountCents: -100n,
+      direction: TransactionDirection.debit,
+      currency: "CAD",
+      category: Category.shopping,
+      merchantName: "Tiny",
+    });
+    await seedTransaction({
+      userId: owner.userId,
+      accountId: cadAccount.id,
+      date: "2026-06-09T12:00:00.000Z",
+      amountCents: -800n,
+      direction: TransactionDirection.debit,
+      currency: "CAD",
+      category: Category.shopping,
+      merchantName: null,
+    });
+    await seedTransaction({
+      userId: owner.userId,
+      accountId: cadAccount.id,
+      date: "2026-06-10T12:00:00.000Z",
+      amountCents: -77777n,
+      direction: TransactionDirection.debit,
+      currency: "CAD",
+      category: Category.shopping,
+      merchantName: "Removed",
+      status: TransactionStatus.removed,
+    });
+    await seedTransaction({
+      userId: owner.userId,
+      accountId: cadAccount.id,
+      date: "2026-05-10T12:00:00.000Z",
+      amountCents: -5000n,
+      direction: TransactionDirection.debit,
+      currency: "CAD",
+      category: Category.food_and_dining,
+      merchantName: "Loblaws",
+    });
+    await seedTransaction({
+      userId: owner.userId,
+      accountId: cadAccount.id,
+      date: "2026-05-11T12:00:00.000Z",
+      amountCents: -2000n,
+      direction: TransactionDirection.debit,
+      currency: "CAD",
+      category: Category.shopping,
+      merchantName: "Store",
+    });
+    await seedTransaction({
+      userId: owner.userId,
+      accountId: cadAccount.id,
+      date: "2026-05-12T12:00:00.000Z",
+      amountCents: -1300n,
+      direction: TransactionDirection.debit,
+      currency: "CAD",
+      category: Category.travel,
+      merchantName: "Airline",
+    });
+    await seedTransaction({
+      userId: owner.userId,
+      accountId: usdAccount.id,
+      date: "2026-06-12T12:00:00.000Z",
+      amountCents: 20000n,
+      direction: TransactionDirection.credit,
+      currency: "USD",
+      category: Category.income,
+      merchantName: "US Employer",
+    });
+    await seedTransaction({
+      userId: owner.userId,
+      accountId: usdAccount.id,
+      date: "2026-06-13T12:00:00.000Z",
+      amountCents: -5000n,
+      direction: TransactionDirection.debit,
+      currency: "USD",
+      category: Category.travel,
+      merchantName: "US Store",
+    });
+    await seedTransaction({
+      userId: other.userId,
+      accountId: otherAccount.id,
+      date: "2026-06-14T12:00:00.000Z",
+      amountCents: -999999n,
+      direction: TransactionDirection.debit,
+      currency: "CAD",
+      category: Category.food_and_dining,
+      merchantName: "Other Tenant",
+    });
+
+    const res = await request(app)
+      .get("/transactions/summary")
+      .query({ month: "2026-06" })
+      .set("Cookie", owner.cookie);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({
+      month: "2026-06",
+      previousMonth: "2026-05",
+      currencies: [
+        {
+          currency: "CAD",
+          incomeCents: 500000,
+          expensesCents: 12500,
+          netCents: 487500,
+          topMerchants: [
+            { merchantName: "Uber", totalCents: 4000, transactionCount: 1 },
+            { merchantName: "Loblaws", totalCents: 3500, transactionCount: 2 },
+            { merchantName: "Cafe", totalCents: 2200, transactionCount: 1 },
+            { merchantName: "Rent", totalCents: 1000, transactionCount: 1 },
+            { merchantName: "Pharmacy", totalCents: 900, transactionCount: 1 },
+          ],
+          categoryDeltas: [
+            { category: Category.food_and_dining, currentCents: 5700, previousCents: 5000, deltaCents: 700 },
+            { category: Category.transport, currentCents: 4000, previousCents: 0, deltaCents: 4000 },
+            { category: Category.housing, currentCents: 1000, previousCents: 0, deltaCents: 1000 },
+            { category: Category.shopping, currentCents: 900, previousCents: 2000, deltaCents: -1100 },
+            { category: Category.health, currentCents: 900, previousCents: 0, deltaCents: 900 },
+            { category: Category.travel, currentCents: 0, previousCents: 1300, deltaCents: -1300 },
+          ],
+        },
+        {
+          currency: "USD",
+          incomeCents: 20000,
+          expensesCents: 5000,
+          netCents: 15000,
+          topMerchants: [
+            { merchantName: "US Store", totalCents: 5000, transactionCount: 1 },
+          ],
+          categoryDeltas: [
+            { category: Category.travel, currentCents: 5000, previousCents: 0, deltaCents: 5000 },
+          ],
+        },
+      ],
+    });
+  }, 30_000);
+
+  it("returns an empty currency list for a month with no data", async () => {
+    const { cookie } = await authenticate();
+
+    const res = await request(app)
+      .get("/transactions/summary")
+      .query({ month: "2026-06" })
+      .set("Cookie", cookie);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ month: "2026-06", previousMonth: "2026-05", currencies: [] });
+  }, 10_000);
+
+  it("returns 400 for missing or malformed month values", async () => {
+    const { cookie } = await authenticate();
+
+    const missing = await request(app)
+      .get("/transactions/summary")
+      .set("Cookie", cookie);
+    const malformed = await request(app)
+      .get("/transactions/summary")
+      .query({ month: "2026-13" })
+      .set("Cookie", cookie);
+
+    expect(missing.status).toBe(400);
+    expect(missing.body.error.code).toBe("INVALID_MONTH");
+    expect(malformed.status).toBe(400);
+    expect(malformed.body.error.code).toBe("INVALID_MONTH");
+  }, 10_000);
+
+  it("requires authentication", async () => {
+    const res = await request(app)
+      .get("/transactions/summary")
+      .query({ month: "2026-06" });
 
     expect(res.status).toBe(401);
   }, 10_000);

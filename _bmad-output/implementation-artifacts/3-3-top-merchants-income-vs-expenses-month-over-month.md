@@ -14,7 +14,7 @@ context:
 
 # Story 3.3: Top merchants, income vs expenses, month-over-month (aggregation API)
 
-Status: ready-for-dev
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -40,33 +40,33 @@ so that I understand my cash flow.
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Route (AC: #1, #7)
-  - [ ] Add `GET /summary` (behind `requireAuth`) to the existing `transactionsAnalyticsRouter` in `transactions.routes.ts`. No `app.ts` change (already mounted).
+- [x] Task 1: Route (AC: #1, #7)
+  - [x] Add `GET /summary` (behind `requireAuth`) to the existing `transactionsAnalyticsRouter` in `transactions.routes.ts`. No `app.ts` change (already mounted).
 
-- [ ] Task 2: Controller + validation (AC: #1, #7)
-  - [ ] Add `getCashFlowSummary` to `transactions.controller.ts`. Reuse the shared `MonthParam` Zod schema and the `safeParse` → `badRequest("INVALID_MONTH", ...)` + `unauthorized` + `next(err)` shape from `getCategoryBreakdown`. `month` is **required** (mirror category-breakdown, not the optional `endMonth` of the trend).
+- [x] Task 2: Controller + validation (AC: #1, #7)
+  - [x] Add `getCashFlowSummary` to `transactions.controller.ts`. Reuse the shared `MonthParam` Zod schema and the `safeParse` → `badRequest("INVALID_MONTH", ...)` + `unauthorized` + `next(err)` shape from `getCategoryBreakdown`. `month` is **required** (mirror category-breakdown, not the optional `endMonth` of the trend).
 
-- [ ] Task 3: Aggregation service (AC: #1–#6, #8)
-  - [ ] In `transactions.service.ts`, export `cashFlowSummary(input: { userId: string; month: string }): Promise<CashFlowSummaryResult>`.
-  - [ ] Derive `previousMonth` (one calendar month before `month`) and both UTC ranges via the existing `monthRangeUtc` (reuse the `enumerateMonths`-style rollover logic; do not hand-roll month math).
-  - [ ] Run all aggregation inside a **single** `withUserContext(userId, async (tx) => { ... })`, issuing the queries **sequentially** (Story 3.2 learned the interactive-tx client rejects concurrent queries — no `Promise.all` inside the callback):
+- [x] Task 3: Aggregation service (AC: #1–#6, #8)
+  - [x] In `transactions.service.ts`, export `cashFlowSummary(input: { userId: string; month: string }): Promise<CashFlowSummaryResult>`.
+  - [x] Derive `previousMonth` (one calendar month before `month`) and both UTC ranges via the existing `monthRangeUtc` (reuse the `enumerateMonths`-style rollover logic; do not hand-roll month math).
+  - [x] Run all aggregation inside a **single** `withUserContext(userId, async (tx) => { ... })`, issuing the queries **sequentially** (Story 3.2 learned the interactive-tx client rejects concurrent queries — no `Promise.all` inside the callback):
     - income/expenses: `groupBy({ by: ["currency", "direction"], where: { date in month, status != removed }, _sum: { amountCents } })` → split credit/debit per currency.
     - top merchants: `groupBy({ by: ["currency", "merchantName"], where: { date in month, direction: debit, amountCents: { lt: 0 }, status != removed, merchantName: { not: null } }, _sum, _count })` → per currency sort desc, take `N`.
     - category spend (current + previous month): reuse a shared category-aggregation helper (see Task 5 reuse note) for each range.
-  - [ ] Shape into per-currency buckets sorted via `compareCurrencyBuckets`; the union of currencies across all sections must appear (a currency with only income, or only a category delta, still shows up with the other sections empty/zero).
+  - [x] Shape into per-currency buckets sorted via `compareCurrencyBuckets`; the union of currencies across all sections must appear (a currency with only income, or only a category delta, still shows up with the other sections empty/zero).
 
-- [ ] Task 4: Money serialization & signed math (AC: #2, #4, #5)
-  - [ ] Keep all sums `bigint`; convert magnitudes (`incomeCents`, `expensesCents`, merchant `totalCents`, category `currentCents`/`previousCents`) to positive integer cents with the existing `toSafeIntegerCents`.
-  - [ ] **Signed values must not use `toSafeIntegerCents`** (it abs-values via `positiveCents`). Compute `netCents = incomeCents - expensesCents` and `deltaCents = currentCents - previousCents` in number space **after** both operands are safe integers — the difference of two JSON-safe integers is itself safe and sign-correct. Do not introduce float/dollar math.
+- [x] Task 4: Money serialization & signed math (AC: #2, #4, #5)
+  - [x] Keep all sums `bigint`; convert magnitudes (`incomeCents`, `expensesCents`, merchant `totalCents`, category `currentCents`/`previousCents`) to positive integer cents with the existing `toSafeIntegerCents`.
+  - [x] **Signed values must not use `toSafeIntegerCents`** (it abs-values via `positiveCents`). Compute `netCents = incomeCents - expensesCents` and `deltaCents = currentCents - previousCents` in number space **after** both operands are safe integers — the difference of two JSON-safe integers is itself safe and sign-correct. Do not introduce float/dollar math.
 
-- [ ] Task 5: Reuse — extract shared category aggregation (AC: #4)
-  - [ ] To avoid duplicating Story 3.1's category-spend grouping, extract an internal helper `aggregateCategorySpendByCurrency(tx, { monthStart, nextMonthStart })` that returns per-currency category sums (`bigint`), and have **both** `categoryBreakdown` (3.1) and `cashFlowSummary` (3.3) call it. This is a behavior-preserving refactor of the already-committed 3.1 service — re-run the 3.1 tests to prove no regression. If the refactor proves risky, fall back to a private duplicate and note why (but prefer the shared helper).
+- [x] Task 5: Reuse — extract shared category aggregation (AC: #4)
+  - [x] To avoid duplicating Story 3.1's category-spend grouping, extract an internal helper `aggregateCategorySpendByCurrency(tx, { monthStart, nextMonthStart })` that returns per-currency category sums (`bigint`), and have **both** `categoryBreakdown` (3.1) and `cashFlowSummary` (3.3) call it. This is a behavior-preserving refactor of the already-committed 3.1 service — re-run the 3.1 tests to prove no regression. If the refactor proves risky, fall back to a private duplicate and note why (but prefer the shared helper).
 
-- [ ] Task 6: Tests & verification (AC: #1–#9)
-  - [ ] Extend `transactions.routes.test.ts` (or add `transactions.summary.routes.test.ts`) with the AC #9 cases, reusing the auth-cookie harness and `hasDb` skip.
-  - [ ] Add a service test asserting sign separation, top-merchant ordering/limit/null exclusion, delta math for categories present in only one month, per-currency isolation, and `withUserContext` usage with no `where: { userId }`.
-  - [ ] If Task 5's refactor lands, the existing 3.1 `categoryBreakdown` tests must still pass unchanged.
-  - [ ] Run `pnpm --filter @clarifi/api typecheck` and the transactions tests. If DB tests hit the 5s timeout, rerun with `--testTimeout=40000 --hookTimeout=40000`.
+- [x] Task 6: Tests & verification (AC: #1–#9)
+  - [x] Extend `transactions.routes.test.ts` (or add `transactions.summary.routes.test.ts`) with the AC #9 cases, reusing the auth-cookie harness and `hasDb` skip.
+  - [x] Add a service test asserting sign separation, top-merchant ordering/limit/null exclusion, delta math for categories present in only one month, per-currency isolation, and `withUserContext` usage with no `where: { userId }`.
+  - [x] If Task 5's refactor lands, the existing 3.1 `categoryBreakdown` tests must still pass unchanged.
+  - [x] Run `pnpm --filter @clarifi/api typecheck` and the transactions tests. If DB tests hit the 5s timeout, rerun with `--testTimeout=40000 --hookTimeout=40000`.
 
 ## Dev Notes
 
@@ -175,12 +175,36 @@ All work stays inside `apps/api/src/modules/transactions/` (plus tests). No new 
 
 ### Agent Model Used
 
+GPT-5 Codex
+
 ### Debug Log References
+
+- Red-first targeted test run before implementation: `cashFlowSummary` was missing and `/transactions/summary` returned 404, as expected.
+- `pnpm --filter @clarifi/api typecheck` passed on 2026-06-17. Note: pnpm emitted the existing Node engine warning (`wanted >=20.19`, current shell `v20.16.0`), but `tsc --noEmit` completed successfully.
+- `set -a; source .env; set +a; pnpm --filter @clarifi/api exec vitest run src/modules/transactions/transactions.service.test.ts src/modules/transactions/transactions.routes.test.ts --testTimeout=40000 --hookTimeout=40000` passed on 2026-06-17: 2 test files, 17 tests.
 
 ### Completion Notes List
 
+- Implemented authenticated `GET /transactions/summary?month=YYYY-MM` with required month validation, central `INVALID_MONTH` error shape, and 401 handling through the existing auth middleware.
+- Added `cashFlowSummary` aggregation inside one `withUserContext(userId)` callback with sequential `groupBy` queries: income/expense totals, top merchants, current category spend, and previous category spend. No query adds `where.userId`.
+- Preserved inflow/outflow separation and per-currency isolation. Income uses `direction=credit` plus positive cents; expenses/top merchants/category spend use `direction=debit` plus negative cents and positive output magnitudes.
+- Kept all stored sums as bigint and converted only magnitude fields through `toSafeIntegerCents`. Signed `netCents` and `deltaCents` are derived by subtraction after magnitude conversion, so they are not abs-valued.
+- Extracted `aggregateCategorySpendByCurrency` and routed both Story 3.1 `categoryBreakdown` and Story 3.3 deltas through it; the focused route run includes the existing 3.1 category-breakdown tests and they passed.
+- BMAD code review found one coverage gap: expense-only months did not explicitly prove negative `netCents`. Fixed with a service regression test that also proves `previousMonth` rollover from `2026-01` to `2025-12`.
+- Guardrail tripwire `git diff --name-only` only showed the story/sprint files and `apps/api/src/modules/transactions/*` implementation/tests. No schema, migration, ingestion sign-normalization, idempotency, LLM, raw SQL, or frontend files were touched.
+- AC traceability: route tests cover summary shape, sign separation, top merchant sort/limit/null exclusion, one-sided current and previous category deltas, per-currency isolation, tenant isolation, empty month, 400, and 401. Service tests cover RLS usage/no `where.userId`, sequential query shapes, signed net/delta math, and January previous-month rollover.
+
 ### File List
+
+- `_bmad-output/implementation-artifacts/3-3-top-merchants-income-vs-expenses-month-over-month.md`
+- `_bmad-output/implementation-artifacts/sprint-status.yaml`
+- `apps/api/src/modules/transactions/transactions.controller.ts`
+- `apps/api/src/modules/transactions/transactions.routes.ts`
+- `apps/api/src/modules/transactions/transactions.service.ts`
+- `apps/api/src/modules/transactions/transactions.routes.test.ts`
+- `apps/api/src/modules/transactions/transactions.service.test.ts`
 
 ## Change Log
 
 - 2026-06-17: Story created (ready-for-dev). Scope is the backend per-currency cash-flow summary API — income vs expenses (signed), top merchants by spend, and per-category month-over-month deltas (RLS, integer cents, never-SUM-across-currencies, signed net/delta). Dashboard UI deferred. Extends the 3.1/3.2 transactions module. No schema change. Not implemented.
+- 2026-06-17: Implemented and reviewed Story 3.3. Added summary route/controller/service, extracted shared category aggregation for 3.1/3.3, added service and route coverage, fixed review coverage gap for negative `netCents`, and verified typecheck plus focused transactions tests before marking done.
