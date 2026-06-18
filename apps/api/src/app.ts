@@ -5,6 +5,7 @@ import cookieParser from "cookie-parser";
 import pinoHttp from "pino-http";
 import { config } from "./config.js";
 import { authRouter } from "./modules/auth/auth.routes.js";
+import { accountsRouter } from "./modules/accounts/accounts.routes.js";
 import { budgetsRouter } from "./modules/budgets/budgets.routes.js";
 import { transactionsRouter } from "./modules/ingestion/ingestion.routes.js";
 import { transactionsAnalyticsRouter } from "./modules/transactions/transactions.routes.js";
@@ -36,6 +37,7 @@ export function createApp(): Express {
   });
 
   app.use("/auth", authRouter);
+  app.use("/accounts", accountsRouter);
   app.use("/budgets", budgetsRouter);
   app.use("/transactions", transactionsRouter);
   app.use("/transactions", transactionsAnalyticsRouter);

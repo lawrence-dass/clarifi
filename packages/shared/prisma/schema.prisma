@@ -102,6 +102,7 @@ model User {
   updatedAt    DateTime @updatedAt @map("updated_at")
 
   accounts      Account[]
+  plaidItems    PlaidItem[]
   transactions  Transaction[]
   budgets       Budget[]
   anomalies     Anomaly[]
@@ -120,15 +121,35 @@ model Account {
   accountType       AccountType @map("account_type")
   balanceCents      BigInt      @map("balance_cents") // integer cents, signed
   currency          String      @db.Char(3) // ISO 4217, e.g. "CAD"
+  plaidItemId       String?     @map("plaid_item_id")
   createdAt         DateTime    @default(now()) @map("created_at")
   updatedAt         DateTime    @updatedAt @map("updated_at")
 
   user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plaidItem    PlaidItem?    @relation(fields: [plaidItemId], references: [id], onDelete: SetNull)
   transactions Transaction[]
 
   @@unique([provider, providerAccountId])
   @@index([userId])
+  @@index([plaidItemId])
   @@map("accounts")
+}
+
+model PlaidItem {
+  id                   String   @id @default(uuid())
+  userId               String   @map("user_id")
+  itemId               String   @unique @map("item_id")
+  accessTokenEncrypted String   @map("access_token_encrypted")
+  institutionName      String   @map("institution_name")
+  cursor               String?
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @updatedAt @map("updated_at")
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accounts Account[]
+
+  @@index([userId])
+  @@map("plaid_items")
 }
 
 model Transaction {

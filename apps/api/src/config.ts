@@ -1,5 +1,16 @@
 import { z } from "zod";
 
+function decodeEncryptionKey(value: string): Buffer {
+  const trimmed = value.trim();
+  const raw = /^[0-9a-f]{64}$/i.test(trimmed)
+    ? Buffer.from(trimmed, "hex")
+    : Buffer.from(trimmed, "base64");
+  if (raw.length !== 32) {
+    throw new Error("ENCRYPTION_KEY must decode to exactly 32 bytes");
+  }
+  return raw;
+}
+
 /**
  * Validate environment at boot — fail fast with a clear message rather than
  * discovering a missing secret deep in a request. Guardrail: validate all
@@ -34,6 +45,16 @@ const EnvSchema = z.object({
   // Separate knob for judge model choice, defaulting to the categorization model
   // family used elsewhere for low-cost classification.
   CATEGORIZE_JUDGE_MODEL: z.string().min(1).default("claude-haiku-4-5"),
+  PLAID_CLIENT_ID: z
+    .string()
+    .optional()
+    .transform((value) => (value && value.length > 0 ? value : undefined)),
+  PLAID_SECRET: z
+    .string()
+    .optional()
+    .transform((value) => (value && value.length > 0 ? value : undefined)),
+  PLAID_ENV: z.enum(["sandbox", "development", "production"]).default("sandbox"),
+  ENCRYPTION_KEY: z.string().min(1).transform(decodeEncryptionKey),
   // Token lifetimes. Validated to the exact grammar durationToSeconds accepts
   // (positive integer + s/m/h/d) so a value only one parser would accept can't
   // reach runtime and crash login. There is no separate JWT_REFRESH_SECRET:

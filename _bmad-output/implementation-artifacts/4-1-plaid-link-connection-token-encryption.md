@@ -14,7 +14,7 @@ context:
 
 # Story 4.1: Plaid Link connection & token encryption
 
-Status: ready-for-dev
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -40,31 +40,31 @@ so that my accounts are linked and ready to sync transactions automatically.
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Schema + RLS migration (AC: #5, #7)
-  - [ ] Add a `PlaidItem` model to `packages/shared/prisma/schema.prisma`: `id`, `userId @map("user_id")`, `itemId @unique @map("item_id")`, `accessTokenEncrypted @map("access_token_encrypted")` (String), `institutionName`, `cursor String? ` (nullable, for 4.2), timestamps, `user` relation (onDelete: Cascade), `@@index([userId])`, `@@map("plaid_items")`. Add nullable `plaidItemId @map("plaid_item_id")` + relation on `Account` (CSV accounts have none).
-  - [ ] Create migration `0007_plaid_items`: the table/column DDL (generate the DDL via `pnpm --filter @clarifi/shared db:migrate:diff` as a starting point) **plus** hand-added RLS — `ALTER TABLE "plaid_items" ENABLE/FORCE ROW LEVEL SECURITY` and a `plaid_items_isolation` policy `USING/WITH CHECK ("user_id" = NULLIF(current_setting('app.current_user_id', true), ''))`, mirroring `0002_enable_rls`. (Table grants for `clarifi_app` apply automatically via the `0003` default privileges.)
-  - [ ] Run `pnpm --filter @clarifi/shared db:generate` after the schema change (Prisma 7 generate is manual).
+- [x] Task 1: Schema + RLS migration (AC: #5, #7)
+  - [x] Add a `PlaidItem` model to `packages/shared/prisma/schema.prisma`: `id`, `userId @map("user_id")`, `itemId @unique @map("item_id")`, `accessTokenEncrypted @map("access_token_encrypted")` (String), `institutionName`, `cursor String? ` (nullable, for 4.2), timestamps, `user` relation (onDelete: Cascade), `@@index([userId])`, `@@map("plaid_items")`. Add nullable `plaidItemId @map("plaid_item_id")` + relation on `Account` (CSV accounts have none).
+  - [x] Create migration `0007_plaid_items`: the table/column DDL (generate the DDL via `pnpm --filter @clarifi/shared db:migrate:diff` as a starting point) **plus** hand-added RLS — `ALTER TABLE "plaid_items" ENABLE/FORCE ROW LEVEL SECURITY` and a `plaid_items_isolation` policy `USING/WITH CHECK ("user_id" = NULLIF(current_setting('app.current_user_id', true), ''))`, mirroring `0002_enable_rls`. (Table grants for `clarifi_app` apply automatically via the `0003` default privileges.)
+  - [x] Run `pnpm --filter @clarifi/shared db:generate` after the schema change (Prisma 7 generate is manual).
 
-- [ ] Task 2: Encryption module (AC: #3, #4)
-  - [ ] `apps/api/src/lib/crypto.ts`: `encryptSecret(plaintext): string` and `decryptSecret(encoded): string` using Node `crypto` `aes-256-gcm`. Random 12-byte IV per call; encode as a versioned, self-describing string (e.g. `v1:<base64 iv>:<base64 authTag>:<base64 ciphertext>`). Key loaded once from `config.ENCRYPTION_KEY` (32 bytes). Decrypt verifies the auth tag (throws on tamper). Never log inputs/outputs.
-  - [ ] `crypto.test.ts`: round-trip; decrypt fails on a tampered tag/ciphertext and on a wrong key; encrypted output never contains the plaintext; two encryptions of the same input differ (random IV).
+- [x] Task 2: Encryption module (AC: #3, #4)
+  - [x] `apps/api/src/lib/crypto.ts`: `encryptSecret(plaintext): string` and `decryptSecret(encoded): string` using Node `crypto` `aes-256-gcm`. Random 12-byte IV per call; encode as a versioned, self-describing string (e.g. `v1:<base64 iv>:<base64 authTag>:<base64 ciphertext>`). Key loaded once from `config.ENCRYPTION_KEY` (32 bytes). Decrypt verifies the auth tag (throws on tamper). Never log inputs/outputs.
+  - [x] `crypto.test.ts`: round-trip; decrypt fails on a tampered tag/ciphertext and on a wrong key; encrypted output never contains the plaintext; two encryptions of the same input differ (random IV).
 
-- [ ] Task 3: Plaid adapter (AC: #1, #2, #6)
-  - [ ] `apps/api/src/lib/plaid-adapter.ts` — the **only** importer of the `plaid` SDK. Functions: `createLinkToken(userId)`, `exchangePublicToken(publicToken) -> { accessToken, itemId }`, `getItemAccounts(accessToken) -> CanonicalAccount[]`. Map Plaid accounts → canonical (`provider: plaid`, `providerAccountId`, `institutionName`, `accountType` mapped to the `AccountType` enum, `balanceCents` via `dollarsToCents`, ISO `currency`). Construct the client from `PLAID_CLIENT_ID/SECRET/ENV`. Make the client injectable for tests.
-  - [ ] Add the `plaid` dependency to `apps/api`.
+- [x] Task 3: Plaid adapter (AC: #1, #2, #6)
+  - [x] `apps/api/src/lib/plaid-adapter.ts` — the **only** importer of the `plaid` SDK. Functions: `createLinkToken(userId)`, `exchangePublicToken(publicToken) -> { accessToken, itemId }`, `getItemAccounts(accessToken) -> CanonicalAccount[]`. Map Plaid accounts → canonical (`provider: plaid`, `providerAccountId`, `institutionName`, `accountType` mapped to the `AccountType` enum, `balanceCents` via `dollarsToCents`, ISO `currency`). Construct the client from `PLAID_CLIENT_ID/SECRET/ENV`. Make the client injectable for tests.
+  - [x] Add the `plaid` dependency to `apps/api`.
 
-- [ ] Task 4: Accounts module — connect flow (AC: #1, #2, #4, #5, #7, #8)
-  - [ ] `apps/api/src/modules/accounts/` (`accounts.routes.ts`, `accounts.controller.ts`, `accounts.service.ts`), mounted at `/accounts` in `app.ts`, behind `requireAuth`.
-  - [ ] `POST /accounts/plaid/link-token` → controller calls the adapter, returns `{ linkToken }`.
-  - [ ] `POST /accounts/plaid/exchange` (Zod body `{ publicToken: string }`) → service inside `withUserContext(userId)`: exchange → `encryptSecret(accessToken)` → upsert `PlaidItem` on `itemId` → fetch accounts via adapter → upsert `Account` rows on `(provider, providerAccountId)` with `plaidItemId`. Return safe account summaries only.
-  - [ ] Pass errors to `next(err)`; never include the token in an error.
+- [x] Task 4: Accounts module — connect flow (AC: #1, #2, #4, #5, #7, #8)
+  - [x] `apps/api/src/modules/accounts/` (`accounts.routes.ts`, `accounts.controller.ts`, `accounts.service.ts`), mounted at `/accounts` in `app.ts`, behind `requireAuth`.
+  - [x] `POST /accounts/plaid/link-token` → controller calls the adapter, returns `{ linkToken }`.
+  - [x] `POST /accounts/plaid/exchange` (Zod body `{ publicToken: string }`) → service inside `withUserContext(userId)`: exchange → `encryptSecret(accessToken)` → upsert `PlaidItem` on `itemId` → fetch accounts via adapter → upsert `Account` rows on `(provider, providerAccountId)` with `plaidItemId`. Return safe account summaries only.
+  - [x] Pass errors to `next(err)`; never include the token in an error.
 
-- [ ] Task 5: Config (AC: #8)
-  - [ ] Add to `config.ts`: `PLAID_CLIENT_ID`, `PLAID_SECRET` (required when Plaid is used — keep optional+guarded like `ANTHROPIC_API_KEY` so non-Plaid dev/test still boots), `PLAID_ENV` (enum, default `sandbox`), `ENCRYPTION_KEY` (validate base64 → 32 bytes, fail-fast). Update `.env.example`.
+- [x] Task 5: Config (AC: #8)
+  - [x] Add to `config.ts`: `PLAID_CLIENT_ID`, `PLAID_SECRET` (required when Plaid is used — keep optional+guarded like `ANTHROPIC_API_KEY` so non-Plaid dev/test still boots), `PLAID_ENV` (enum, default `sandbox`), `ENCRYPTION_KEY` (validate base64 → 32 bytes, fail-fast). Update `.env.example`.
 
-- [ ] Task 6: Tests & verification (AC: #9)
-  - [ ] Adapter test with a fake Plaid client (mapping + token exchange). Accounts route test (Supertest, `hasDb` skip) injecting a fake Plaid client/adapter: exchange creates `PlaidItem` + `Account`(s); assert the stored `access_token_encrypted` is ciphertext (decrypts back, ≠ plaintext) and no token in the response; idempotent re-exchange (no dupes); `401`; tenant isolation (user B can't see user A's item under RLS).
-  - [ ] Run `pnpm --filter @clarifi/shared db:generate`, `pnpm --filter @clarifi/api typecheck`, and the new tests (apply the `0007` migration to the test DB first). If DB tests hit the 5s timeout, rerun with `--testTimeout=40000 --hookTimeout=40000`.
+- [x] Task 6: Tests & verification (AC: #9)
+  - [x] Adapter test with a fake Plaid client (mapping + token exchange). Accounts route test (Supertest, `hasDb` skip) injecting a fake Plaid client/adapter: exchange creates `PlaidItem` + `Account`(s); assert the stored `access_token_encrypted` is ciphertext (decrypts back, ≠ plaintext) and no token in the response; idempotent re-exchange (no dupes); `401`; tenant isolation (user B can't see user A's item under RLS).
+  - [x] Run `pnpm --filter @clarifi/shared db:generate`, `pnpm --filter @clarifi/api typecheck`, and the new tests (apply the `0007` migration to the test DB first). If DB tests hit the 5s timeout, rerun with `--testTimeout=40000 --hookTimeout=40000`.
 
 ## Dev Notes
 
@@ -146,12 +146,49 @@ Additions: `packages/shared/prisma/migrations/0007_plaid_items/`, `apps/api/src/
 
 ### Agent Model Used
 
+GPT-5 Codex
+
 ### Debug Log References
+
+- `PATH=/Users/lawrence/.nvm/versions/node/v22.22.3/bin:$PATH pnpm --filter @clarifi/shared db:generate` → passed; generated Prisma Client 7.8.0.
+- Initial `db:generate` under Node v20.16.0 failed with Prisma 7 CJS/ESM loader issue; reran under repo `.nvmrc` Node 22.22.3.
+- `PATH=/Users/lawrence/.nvm/versions/node/v22.22.3/bin:$PATH pnpm --filter @clarifi/shared db:migrate` → applied `0007_plaid_items`; 7 migrations successfully applied.
+- `PATH=/Users/lawrence/.nvm/versions/node/v22.22.3/bin:$PATH pnpm --filter @clarifi/api typecheck` → passed (`tsc --noEmit`).
+- `PATH=/Users/lawrence/.nvm/versions/node/v22.22.3/bin:$PATH pnpm --filter @clarifi/api exec vitest run src/lib/crypto.test.ts src/lib/plaid-adapter.test.ts src/modules/accounts/accounts.routes.test.ts --testTimeout=40000 --hookTimeout=40000` → passed; 3 files, 15 tests.
+- BMAD code review: local Blind Hunter / Edge Case Hunter / Acceptance Auditor review completed after implementation and tests; 0 decision-needed, 0 patch, 0 defer findings remained.
 
 ### Completion Notes List
 
+- Implemented backend-only Plaid Link connection surface: authenticated `POST /accounts/plaid/link-token` and `POST /accounts/plaid/exchange`, mounted under `/accounts`.
+- Added single-egress Plaid adapter in `apps/api/src/lib/plaid-adapter.ts`; guardrail check `rg "from ['\"]plaid['\"]|require\\(['\"]plaid['\"]\\)"` found only this file.
+- Added `PlaidItem` schema + `Account.plaidItemId` relation and migration `0007_plaid_items`; migration ENABLEs and FORCEs RLS with `plaid_items_isolation` using `app.current_user_id`, mirroring `0002_enable_rls`.
+- Added AES-256-GCM envelope crypto (`v1:iv:authTag:ciphertext`) using random 12-byte IV and verified auth tag; `ENCRYPTION_KEY` decodes to exactly 32 bytes and fails fast otherwise. Config accepts valid base64 and the existing local 64-char hex key format.
+- Tokens are never returned; route tests assert response bodies omit the raw access token and public token, DB stores ciphertext, and decrypting the ciphertext returns the fake token.
+- Plaid adapter maps accounts to `CanonicalAccount`, uses `dollarsToCents` for balances, preserves per-account currency, and defaults unknown types to `other`.
+- All production DB writes/reads for this flow are inside `withUserContext(req.userId, ...)`; controllers ignore body user IDs and use the session-derived `req.userId`.
+- Plaid provider errors are wrapped as generic `AppError`s so provider exception text containing a token is not returned or logged by the generic error handler.
+- AC traceability: AC1 link token route test; AC2 exchange route test; AC3 crypto tests + DB ciphertext assertion; AC4 token-leakage response/error tests; AC5 migration + RLS tenant isolation test; AC6 adapter import/mapping tests; AC7 idempotent re-exchange test; AC8 config validation + 401/400 route tests; AC9 targeted test suite above.
+
 ### File List
+
+- `.env.example`
+- `apps/api/package.json`
+- `apps/api/src/app.ts`
+- `apps/api/src/config.ts`
+- `apps/api/src/lib/crypto.ts`
+- `apps/api/src/lib/crypto.test.ts`
+- `apps/api/src/lib/plaid-adapter.ts`
+- `apps/api/src/lib/plaid-adapter.test.ts`
+- `apps/api/src/modules/accounts/accounts.controller.ts`
+- `apps/api/src/modules/accounts/accounts.routes.ts`
+- `apps/api/src/modules/accounts/accounts.routes.test.ts`
+- `apps/api/src/modules/accounts/accounts.service.ts`
+- `packages/shared/prisma/migrations/0007_plaid_items/migration.sql`
+- `packages/shared/prisma/schema.prisma`
+- `packages/shared/src/canonical.ts`
+- `pnpm-lock.yaml`
 
 ## Change Log
 
 - 2026-06-18: Story created (ready-for-dev). Scope is the backend Plaid Link connection — link-token + public-token exchange, AES-256-GCM access-token encryption at rest (new lib/crypto), a new RLS-protected PlaidItem table (migration 0007) + Account.plaidItemId, and Account creation via a single-egress Plaid adapter mapping to the canonical model. Web Link widget + transaction sync deferred (4.2). Not implemented.
+- 2026-06-18: Implemented Story 4.1 backend Plaid Link connection, token encryption, RLS migration, adapter/account routes/tests; applied `0007_plaid_items`; passed db:generate, API typecheck, and targeted crypto/adapter/route tests; BMAD code review completed clean. Status set to done.

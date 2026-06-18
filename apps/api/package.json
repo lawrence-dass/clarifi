@@ -26,6 +26,7 @@
     "papaparse": "^5.5.3",
     "pino": "^9.5.0",
     "pino-http": "^10.3.0",
+    "plaid": "^42.2.0",
     "zod": "^3.24.1"
   },
   "devDependencies": {

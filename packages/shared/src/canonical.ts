@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { AccountType, Provider } from "./generated/prisma/client.js";
 
 /**
  * Provider-agnostic canonical transaction — the anti-corruption boundary
@@ -27,3 +28,15 @@ export interface RowError {
   row: number; // 1-based data row number (excludes the header)
   reason: string;
 }
+
+export const CanonicalAccount = z.object({
+  provider: z.literal(Provider.plaid),
+  providerAccountId: z.string().min(1),
+  institutionName: z.string().min(1),
+  accountType: z.nativeEnum(AccountType),
+  balanceCents: z.bigint(),
+  currency: z.string().length(3),
+  mask: z.string().optional(),
+});
+
+export type CanonicalAccount = z.infer<typeof CanonicalAccount>;
