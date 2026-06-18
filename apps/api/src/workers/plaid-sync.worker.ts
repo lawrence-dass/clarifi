@@ -75,7 +75,7 @@ export async function processPlaidSyncJob(
 
   while (true) {
     const page = await adapter.syncTransactions(accessToken, cursor);
-    await persistPlaidSyncPage(item, page.added, page.modified, page.nextCursor);
+    await persistPlaidSyncPage(item, page.added, page.modified, page.removedProviderTransactionIds, page.nextCursor);
     cursor = page.nextCursor;
     if (!page.hasMore) break;
   }
@@ -98,6 +98,7 @@ async function persistPlaidSyncPage(
   item: PlaidItemForSync,
   added: CanonicalTransaction[],
   modified: CanonicalTransaction[],
+  removedProviderTransactionIds: string[],
   nextCursor: string,
 ): Promise<void> {
   return withUserContext(item.userId, async (tx) => {
@@ -112,6 +113,8 @@ async function persistPlaidSyncPage(
       },
     });
     const accountByProviderId = new Map(accounts.map((account) => [account.providerAccountId, account]));
+    const accountIds = accounts.map((a) => a.id);
+
     for (const transaction of [...added, ...modified]) {
       if (!transaction.providerAccountId) continue;
       const account = accountByProviderId.get(transaction.providerAccountId);
@@ -148,6 +151,36 @@ async function persistPlaidSyncPage(
           status: transaction.pending ? TransactionStatus.pending : TransactionStatus.posted,
           pendingTransactionId: transaction.pendingTransactionId ?? null,
         },
+      });
+    }
+
+    // Supersession: a posted txn arriving with a pendingTransactionId links to the prior
+    // pending row — mark that row removed. updateMany is a no-op if the row is absent,
+    // keeping this idempotent on replay.
+    const supersededIds = [...added, ...modified]
+      .filter((t) => t.pendingTransactionId != null)
+      .map((t) => t.pendingTransactionId as string);
+
+    if (supersededIds.length > 0 && accountIds.length > 0) {
+      await tx.transaction.updateMany({
+        where: {
+          provider: Provider.plaid,
+          accountId: { in: accountIds },
+          providerTransactionId: { in: supersededIds },
+        },
+        data: { status: TransactionStatus.removed },
+      });
+    }
+
+    // Explicit removals: mark rows removed (kept, never hard-deleted).
+    if (removedProviderTransactionIds.length > 0 && accountIds.length > 0) {
+      await tx.transaction.updateMany({
+        where: {
+          provider: Provider.plaid,
+          accountId: { in: accountIds },
+          providerTransactionId: { in: removedProviderTransactionIds },
+        },
+        data: { status: TransactionStatus.removed },
       });
     }
 

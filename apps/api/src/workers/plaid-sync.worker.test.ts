@@ -2,6 +2,7 @@ import { afterAll, afterEach, describe, expect, it, vi } from "vitest";
 import { randomUUID } from "node:crypto";
 import {
   AccountType,
+  Category,
   prisma,
   Provider,
   TransactionDirection,
@@ -11,6 +12,7 @@ import {
 } from "@clarifi/shared";
 import { encryptSecret } from "../lib/crypto.js";
 import { PLAID_SYNC_REQUESTED_EVENT } from "../queues/plaid-sync.outbox.js";
+import { categoryBreakdown } from "../modules/transactions/transactions.service.js";
 import {
   processPlaidSyncJob,
   processPlaidSyncOutboxJob,
@@ -246,6 +248,176 @@ describe.skipIf(!hasDb)("processPlaidSyncJob", () => {
     const rows = await withUserContext(seeded.user.id, (tx) => tx.transaction.findMany());
     expect(rows.map((row) => row.providerTransactionId).sort()).toEqual(["txn-first-page", "txn-second-page"]);
   }, 20_000);
+
+  it("in-place post: pending row transitions to posted when the same id arrives as not pending", async () => {
+    const seeded = await seedLinkedItem();
+
+    // First sync: add as pending
+    await processPlaidSyncJob(
+      { itemId: seeded.itemId },
+      fakeOptions(vi.fn(async () => ({
+        added: [canonical({ providerTransactionId: "txn-lifecycle", providerAccountId: seeded.checkingProviderAccountId, amountCents: -1500n, pending: true })],
+        modified: [],
+        removedProviderTransactionIds: [],
+        nextCursor: "cursor-1",
+        hasMore: false,
+      }))),
+    );
+
+    // Second sync: same id arrives posted
+    await processPlaidSyncJob(
+      { itemId: seeded.itemId },
+      fakeOptions(vi.fn(async () => ({
+        added: [],
+        modified: [canonical({ providerTransactionId: "txn-lifecycle", providerAccountId: seeded.checkingProviderAccountId, amountCents: -1500n, pending: false })],
+        removedProviderTransactionIds: [],
+        nextCursor: "cursor-2",
+        hasMore: false,
+      }))),
+    );
+
+    const rows = await withUserContext(seeded.user.id, (tx) => tx.transaction.findMany());
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ providerTransactionId: "txn-lifecycle", status: TransactionStatus.posted, amountCents: -1500n });
+  }, 40_000);
+
+  it("supersession: new posted transaction marks prior pending row removed and links via pendingTransactionId", async () => {
+    const seeded = await seedLinkedItem();
+
+    // Seed the pending row
+    await processPlaidSyncJob(
+      { itemId: seeded.itemId },
+      fakeOptions(vi.fn(async () => ({
+        added: [canonical({ providerTransactionId: "txn-pending", providerAccountId: seeded.checkingProviderAccountId, amountCents: -3000n, pending: true })],
+        modified: [],
+        removedProviderTransactionIds: [],
+        nextCursor: "cursor-1",
+        hasMore: false,
+      }))),
+    );
+
+    // New posted txn arrives carrying pendingTransactionId linking to the prior pending row
+    await processPlaidSyncJob(
+      { itemId: seeded.itemId },
+      fakeOptions(vi.fn(async () => ({
+        added: [canonical({ providerTransactionId: "txn-posted", providerAccountId: seeded.checkingProviderAccountId, amountCents: -3000n, pending: false, pendingTransactionId: "txn-pending" })],
+        modified: [],
+        removedProviderTransactionIds: [],
+        nextCursor: "cursor-2",
+        hasMore: false,
+      }))),
+    );
+
+    const rows = await withUserContext(seeded.user.id, (tx) =>
+      tx.transaction.findMany({ orderBy: { providerTransactionId: "asc" } }),
+    );
+    expect(rows).toHaveLength(2);
+    expect(rows.find((r) => r.providerTransactionId === "txn-pending")).toMatchObject({ status: TransactionStatus.removed });
+    expect(rows.find((r) => r.providerTransactionId === "txn-posted")).toMatchObject({
+      status: TransactionStatus.posted,
+      pendingTransactionId: "txn-pending",
+    });
+  }, 40_000);
+
+  it("removed ids: marks matching rows removed (row kept), and re-running the same removal page is idempotent", async () => {
+    const seeded = await seedLinkedItem();
+
+    // Seed a posted transaction
+    await processPlaidSyncJob(
+      { itemId: seeded.itemId },
+      fakeOptions(vi.fn(async () => ({
+        added: [canonical({ providerTransactionId: "txn-a", providerAccountId: seeded.checkingProviderAccountId, amountCents: -800n })],
+        modified: [],
+        removedProviderTransactionIds: [],
+        nextCursor: "cursor-1",
+        hasMore: false,
+      }))),
+    );
+
+    const removalPage = {
+      added: [] as CanonicalTransaction[],
+      modified: [] as CanonicalTransaction[],
+      removedProviderTransactionIds: ["txn-a"],
+      nextCursor: "cursor-2",
+      hasMore: false,
+    };
+
+    // Run removal page twice (idempotent replay)
+    await processPlaidSyncJob({ itemId: seeded.itemId }, fakeOptions(vi.fn(async () => removalPage)));
+    await prisma.plaidItem.update({ where: { id: seeded.plaidItem.id }, data: { cursor: "cursor-1" } });
+    await processPlaidSyncJob({ itemId: seeded.itemId }, fakeOptions(vi.fn(async () => removalPage)));
+
+    const rows = await withUserContext(seeded.user.id, (tx) => tx.transaction.findMany());
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ providerTransactionId: "txn-a", status: TransactionStatus.removed });
+  }, 40_000);
+
+  it("unknown removed id is silently ignored", async () => {
+    const seeded = await seedLinkedItem();
+    await expect(
+      processPlaidSyncJob(
+        { itemId: seeded.itemId },
+        fakeOptions(vi.fn(async () => ({
+          added: [],
+          modified: [],
+          removedProviderTransactionIds: ["unknown-txn-id"],
+          nextCursor: "cursor-1",
+          hasMore: false,
+        }))),
+      ),
+    ).resolves.toBeUndefined();
+    expect(await withUserContext(seeded.user.id, (tx) => tx.transaction.count())).toBe(0);
+  }, 40_000);
+
+  it("removed transaction is excluded from category breakdown (regression)", async () => {
+    const seeded = await seedLinkedItem();
+
+    // Seed a posted transaction with a category — must appear in breakdown
+    await withUserContext(seeded.user.id, (tx) =>
+      tx.transaction.create({
+        data: {
+          accountId: seeded.checking.id,
+          userId: seeded.user.id,
+          provider: Provider.plaid,
+          providerTransactionId: "txn-posted-cat",
+          date: new Date("2026-06-10T00:00:00.000Z"),
+          amountCents: -5000n,
+          direction: TransactionDirection.debit,
+          currency: "CAD",
+          rawDescription: "Posted transaction",
+          status: TransactionStatus.posted,
+          category: Category.food_and_dining,
+        },
+      }),
+    );
+
+    // Seed a removed transaction with the same category — must NOT appear in breakdown
+    await withUserContext(seeded.user.id, (tx) =>
+      tx.transaction.create({
+        data: {
+          accountId: seeded.checking.id,
+          userId: seeded.user.id,
+          provider: Provider.plaid,
+          providerTransactionId: "txn-removed-cat",
+          date: new Date("2026-06-10T00:00:00.000Z"),
+          amountCents: -2000n,
+          direction: TransactionDirection.debit,
+          currency: "CAD",
+          rawDescription: "Removed transaction",
+          status: TransactionStatus.removed,
+          category: Category.food_and_dining,
+        },
+      }),
+    );
+
+    const breakdown = await categoryBreakdown({ userId: seeded.user.id, month: "2026-06" });
+    const cad = breakdown.currencies.find((c) => c.currency === "CAD");
+    const food = cad?.categories.find((cat) => cat.category === Category.food_and_dining);
+
+    // Only the 5000 posted amount appears; the 2000 removed amount is excluded
+    expect(food?.totalCents).toBe(5000);
+    expect(food?.transactionCount).toBe(1);
+  }, 40_000);
 
   it("skips transactions for unknown Plaid accounts without fabricating accounts", async () => {
     const seeded = await seedLinkedItem();
