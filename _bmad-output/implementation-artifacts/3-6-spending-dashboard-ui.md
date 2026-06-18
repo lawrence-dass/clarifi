@@ -14,7 +14,7 @@ context:
 
 # Story 3.6: Spending dashboard UI
 
-Status: ready-for-dev
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -40,29 +40,32 @@ so that I can actually see where my money goes.
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Query hooks (AC: #2, #3)
-  - [ ] Add `apps/web/src/features/dashboard/hooks/` (or `lib/queries/`) with one hook per endpoint, each calling `apiClient<TResponse>(path)` with a typed response and an array query key. Paths are the canonical API resource paths (the apiClient/BFF handles the base/`/api` prefix) — e.g. `apiClient('/transactions/category-breakdown?month=' + month)`.
-  - [ ] Define response types matching the API shapes (see Dev Notes) — import shared enums (`Category`) from `@clarifi/shared` where useful; do not redefine them.
+- [x] Task 1: Query hooks (AC: #2, #3)
+  - [x] Add `apps/web/src/features/dashboard/hooks/` (or `lib/queries/`) with one hook per endpoint, each calling `apiClient<TResponse>(path)` with a typed response and an array query key. Paths are the canonical API resource paths (the apiClient/BFF handles the base/`/api` prefix) — e.g. `apiClient('/transactions/category-breakdown?month=' + month)`.
+  - [x] Define response types matching the API shapes (see Dev Notes) — import shared enums (`Category`) from `@clarifi/shared` where useful; do not redefine them.
 
-- [ ] Task 2: Dashboard state & layout (AC: #1, #3, #4)
-  - [ ] A `/dashboard` page (in the protected `(app)` group) with a month selector (default current `YYYY-MM`) and a currency selector (default CAD, hidden when a single currency). Hold month/currency in local state (or a small Zustand store if cleaner) and pass to the sections.
-  - [ ] Compose the four sections using the shadcn `Card` primitives and the app shell.
+- [x] Task 2: Dashboard state & layout (AC: #1, #3, #4)
+  - [x] A `/dashboard` page (in the protected `(app)` group) with a month selector (default current `YYYY-MM`) and a currency selector (default CAD, hidden when a single currency). Hold month/currency in local state (or a small Zustand store if cleaner) and pass to the sections.
+  - [x] Compose the four sections using the shadcn `Card` primitives and the app shell.
 
-- [ ] Task 3: Category breakdown donut (AC: #1, #4, #5, #6)
-  - [ ] Recharts donut of the selected currency's categories (`totalCents`), with legend + accessible labels; loading/error/empty states.
+- [x] Task 3: Category breakdown donut (AC: #1, #4, #5, #6)
+  - [x] Recharts donut of the selected currency's categories (`totalCents`), with legend + accessible labels; loading/error/empty states.
 
-- [ ] Task 4: Spending trend line (AC: #1, #5, #6, #9)
-  - [ ] Recharts line of the selected currency's `totals` across the 6-month `months` axis (render zeros, not gaps); states.
+- [x] Task 4: Spending trend line (AC: #1, #5, #6, #9)
+  - [x] Recharts line of the selected currency's `totals` across the 6-month `months` axis (render zeros, not gaps); states.
 
-- [ ] Task 5: Cash-flow summary (AC: #1, #5, #6)
-  - [ ] Income / expenses / net cards (net signed; from API), a top-merchants list, and a category MoM delta list (delta signed, with up/down affordance); states.
+- [x] Task 5: Cash-flow summary (AC: #1, #5, #6)
+  - [x] Income / expenses / net cards (net signed; from API), a top-merchants list, and a category MoM delta list (delta signed, with up/down affordance); states.
 
-- [ ] Task 6: Budgets + set form (AC: #1, #5, #6, #7)
-  - [ ] Budget progress rows (limit / spent / remaining / `percentUsed` from API; progress bar via the `percentUsed` value, clamped for display only) + a set-budget form (RHF+Zod) mutating `PUT /budgets` and invalidating `['budgets', { month }]`.
+- [x] Task 6: Budgets + set form (AC: #1, #5, #6, #7)
+  - [x] Budget progress rows (limit / spent / remaining / `percentUsed` from API; progress bar via the `percentUsed` value, clamped for display only) + a set-budget form (RHF+Zod) mutating `PUT /budgets` and invalidating `['budgets', { month }]`.
 
-- [ ] Task 7: Tests & verification (AC: #8, #9)
-  - [ ] Component tests with a `QueryClient` test wrapper and a mocked `apiClient`: data render, loading, error, empty, and the budget mutation invalidation.
-  - [ ] Run `pnpm --filter @clarifi/web typecheck`, `test`, `build`. Optionally drive via the `run`/`verify` skills (sign in → dashboard renders).
+- [x] Task 7: Tests & verification (AC: #8, #9)
+  - [x] Component tests with a `QueryClient` test wrapper and a mocked `apiClient`: data render, loading, error, empty, and the budget mutation invalidation.
+  - [x] Run `pnpm --filter @clarifi/web typecheck`, `test`, `build`. Optionally drive via the `run`/`verify` skills (sign in → dashboard renders).
+
+### Review Findings
+- [x] [Review][Patch] Zero category MoM deltas rendered with an upward/red affordance [`apps/web/src/features/dashboard/cash-flow-summary-section.tsx`] — fixed by centralizing delta icon/tone helpers so negative, positive, and zero deltas render down/green, up/red, and neutral/slate respectively.
 
 ## Dev Notes
 
@@ -133,13 +136,45 @@ Additions under `apps/web/src` (suggested): `features/dashboard/` (page sections
 ## Dev Agent Record
 
 ### Agent Model Used
+GPT-5 Codex
 
 ### Debug Log References
+- 2026-06-17: Replaced the 3.5 `/dashboard` smoke page with the real dashboard UI under the protected `(app)` route group.
+- 2026-06-17: Kept endpoint access centralized in `apps/web/src/features/dashboard/hooks.ts`; the only non-test `fetch` usages remain the 3.5 `apiClient` and BFF route handler.
+- 2026-06-17: Used a local client-safe category option schema in the dashboard feature because the current `@clarifi/shared` root barrel imports Prisma/server modules into client bundles. Values match the API `Category` enum exactly and are limited to presentation/form validation.
+- 2026-06-17: Guardrail scan confirmed no backend/API/schema changes, no client token/cookie access, no hand-dividing cents, and no cross-currency summing.
+- 2026-06-17: Code review found one patch-level presentation issue: zero MoM deltas needed neutral affordance rather than up/red. Fixed and reran required gates.
 
 ### Completion Notes List
+- Implemented the spending dashboard UI with four independent sections: category breakdown donut, six-month spending trend line, cash-flow summary, and CAD budget progress plus set-budget form.
+- Added typed TanStack Query hooks with array keys for `category-breakdown`, `spending-trend`, `summary`, and `budgets`; all calls route through the existing `apiClient`.
+- Added a single month selector driving all endpoint query keys and a currency selector that appears only when more than one API currency is available. The selected currency is passed to breakdown/trend/summary; budgets remain CAD-only.
+- Money display uses `formatMoney` only. API-provided `incomeCents`, `expensesCents`, `netCents`, `totalCents`, `deltaCents`, `spentCents`, `remainingCents`, `monthlyLimitCents`, and `percentUsed` are rendered as supplied; no totals/net/delta/remaining values are recomputed in the UI.
+- Each section has its own loading, error, and empty state via `SectionFrame`, `Loading`, and `ErrorState`; a failing endpoint does not blank the whole dashboard.
+- Budget mutation validates `monthlyLimitCents` as a positive integer, sends `PUT /budgets` via `apiClient`, and invalidates `['budgets', { month }]` after success.
+- AC traceability: AC1 via dashboard page and four sections; AC2 via dashboard hooks and apiClient scan; AC3 via page month state and query keys; AC4 via selected-currency rendering and CAD-only budgets; AC5 via `formatMoney` usage and guardrail scan; AC6 via `SectionFrame` states and section tests; AC7 via `BudgetsSection` mutation and invalidation test; AC8 via web typecheck/test/build evidence; AC9 via chart labels/legends, zero-filled trend rendering from `months`, readable labels, and successful build.
+- Verification evidence:
+  - `pnpm --filter @clarifi/web typecheck` — passed before and after review fix (`tsc --noEmit`).
+  - `pnpm --filter @clarifi/web test` — passed before and after review fix (4 files, 11 tests).
+  - `pnpm --filter @clarifi/web build` — passed before and after review fix (Next.js 16.2.9; routes `/`, `/api/[...path]`, `/dashboard`, `/sign-in`, `/sign-up`).
+- Environment note: commands emitted the existing Node warning because this shell is `v20.16.0` while the repo wants `>=20.19`; the requested gates still completed as recorded.
 
 ### File List
+- `_bmad-output/implementation-artifacts/3-6-spending-dashboard-ui.md`
+- `_bmad-output/implementation-artifacts/sprint-status.yaml`
+- `apps/web/src/app/(app)/dashboard/page.tsx`
+- `apps/web/src/features/dashboard/budgets-section.tsx`
+- `apps/web/src/features/dashboard/cash-flow-summary-section.tsx`
+- `apps/web/src/features/dashboard/category-breakdown-section.tsx`
+- `apps/web/src/features/dashboard/dashboard-sections.test.tsx`
+- `apps/web/src/features/dashboard/dashboard-utils.ts`
+- `apps/web/src/features/dashboard/hooks.ts`
+- `apps/web/src/features/dashboard/section-frame.tsx`
+- `apps/web/src/features/dashboard/spending-trend-section.tsx`
+- `apps/web/src/features/dashboard/types.ts`
 
 ## Change Log
 
 - 2026-06-17: Story created (ready-for-dev). Scope is the spending dashboard UI rendering the 3.1–3.4 APIs through the 3.5 foundation — category donut, 6-month trend, cash-flow summary, and budget progress + set form — per-currency, money display-only, with loading/error/empty states. Frontend only; no backend or schema change. Completes Epic 3's deferred UI deliverable. Not implemented.
+- 2026-06-17: Implemented dashboard UI and moved story to review. Added typed query hooks, dashboard state/layout, category/trend/summary/budget sections, budget mutation invalidation, and component tests.
+- 2026-06-17: Completed code review fix and marked story done. Zero MoM deltas now render neutrally; web typecheck, tests, and build pass.
