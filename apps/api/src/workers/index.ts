@@ -1,13 +1,15 @@
 import type { Worker } from "bullmq";
 import { startCategorizeOutboxDrainer } from "../queues/categorize.outbox.js";
+import { startPlaidSyncOutboxDrainer } from "../queues/plaid-sync.outbox.js";
 import { createCategorizeWorker } from "./categorize.worker.js";
+import { createPlaidSyncWorker } from "./plaid-sync.worker.js";
 
 export interface StartedWorkers {
   close(): Promise<void>;
 }
 
 export function startWorkers(): StartedWorkers {
-  const workers: Worker[] = [createCategorizeWorker()];
+  const workers: Worker[] = [createCategorizeWorker(), createPlaidSyncWorker()];
   for (const worker of workers) {
     worker.on("error", (err) => {
       // eslint-disable-next-line no-console
@@ -19,10 +21,12 @@ export function startWorkers(): StartedWorkers {
     });
   }
 
-  const stopDrainer = startCategorizeOutboxDrainer();
+  const stopCategorizeDrainer = startCategorizeOutboxDrainer();
+  const stopPlaidSyncDrainer = startPlaidSyncOutboxDrainer();
   return {
     async close() {
-      stopDrainer();
+      stopCategorizeDrainer();
+      stopPlaidSyncDrainer();
       await Promise.all(workers.map((worker) => worker.close()));
     },
   };

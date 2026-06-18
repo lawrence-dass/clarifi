@@ -8,11 +8,17 @@ import {
   type AccountBase,
   type AccountsGetResponse,
   type ItemPublicTokenExchangeResponse,
+  type JWKPublicKey,
   type LinkTokenCreateResponse,
+  type Transaction,
+  type TransactionsSyncResponse,
+  type WebhookVerificationKeyGetResponse,
 } from "plaid";
-import { AccountType, CanonicalAccount, dollarsToCents, Provider } from "@clarifi/shared";
+import { AccountType, CanonicalAccount, CanonicalTransaction, dollarsToCents, Provider } from "@clarifi/shared";
 import { config } from "../config.js";
 import { AppError } from "./app-error.js";
+
+type PublicJsonWebKey = Record<string, unknown>;
 
 export interface PlaidClientLike {
   linkTokenCreate(input: {
@@ -24,6 +30,13 @@ export interface PlaidClientLike {
   }): Promise<{ data: LinkTokenCreateResponse }>;
   itemPublicTokenExchange(input: { public_token: string }): Promise<{ data: ItemPublicTokenExchangeResponse }>;
   accountsGet(input: { access_token: string }): Promise<{ data: AccountsGetResponse }>;
+  transactionsSync(input: {
+    access_token: string;
+    cursor?: string;
+    count?: number;
+    options?: { include_original_description?: boolean | null };
+  }): Promise<{ data: TransactionsSyncResponse }>;
+  webhookVerificationKeyGet(input: { key_id: string }): Promise<{ data: WebhookVerificationKeyGetResponse }>;
 }
 
 export interface PlaidExchangeResult {
@@ -36,10 +49,20 @@ export interface PlaidAccountsResult {
   accounts: CanonicalAccount[];
 }
 
+export interface PlaidSyncResult {
+  added: CanonicalTransaction[];
+  modified: CanonicalTransaction[];
+  removedProviderTransactionIds: string[];
+  nextCursor: string;
+  hasMore: boolean;
+}
+
 export interface PlaidAdapter {
   createLinkToken(userId: string): Promise<string>;
   exchangePublicToken(publicToken: string): Promise<PlaidExchangeResult>;
   getItemAccounts(accessToken: string): Promise<PlaidAccountsResult>;
+  syncTransactions(accessToken: string, cursor?: string): Promise<PlaidSyncResult>;
+  getWebhookVerificationKey(keyId: string): Promise<PublicJsonWebKey>;
 }
 
 export function createPlaidAdapter(client?: PlaidClientLike): PlaidAdapter {
@@ -70,6 +93,27 @@ export function createPlaidAdapter(client?: PlaidClientLike): PlaidAdapter {
         institutionName,
         accounts: response.data.accounts.map((account) => mapAccount(account, institutionName)),
       };
+    },
+
+    async syncTransactions(accessToken: string, cursor?: string): Promise<PlaidSyncResult> {
+      const response = await getClient(client).transactionsSync({
+        access_token: accessToken,
+        ...(cursor ? { cursor } : {}),
+        count: 500,
+        options: { include_original_description: true },
+      });
+      return {
+        added: response.data.added.map(mapTransaction),
+        modified: response.data.modified.map(mapTransaction),
+        removedProviderTransactionIds: response.data.removed.map((transaction) => transaction.transaction_id),
+        nextCursor: response.data.next_cursor,
+        hasMore: response.data.has_more,
+      };
+    },
+
+    async getWebhookVerificationKey(keyId: string): Promise<PublicJsonWebKey> {
+      const response = await getClient(client).webhookVerificationKeyGet({ key_id: keyId });
+      return mapWebhookVerificationKey(response.data.key);
     },
   };
 }
@@ -124,4 +168,38 @@ function mapAccountType(account: AccountBase): AccountType {
   if (subtype === "credit card") return AccountType.credit_card;
   if (account.type === PlaidAccountType.Credit) return AccountType.credit_card;
   return AccountType.other;
+}
+
+function mapTransaction(transaction: Transaction): CanonicalTransaction {
+  const rawDescription = transaction.original_description?.trim()
+    || transaction.name?.trim()
+    || transaction.merchant_name?.trim()
+    || "Plaid transaction";
+  const currency = transaction.iso_currency_code ?? "CAD";
+
+  return CanonicalTransaction.parse({
+    providerTransactionId: transaction.transaction_id,
+    providerAccountId: transaction.account_id,
+    date: new Date(`${transaction.date}T00:00:00.000Z`),
+    // Plaid's transaction sign is inverted from Clarifi's convention:
+    // positive means money out, so normalize once at the adapter boundary.
+    amountCents: -dollarsToCents(transaction.amount),
+    currency,
+    rawDescription,
+    merchantName: transaction.merchant_name ?? undefined,
+    pending: transaction.pending,
+    pendingTransactionId: transaction.pending_transaction_id,
+  });
+}
+
+function mapWebhookVerificationKey(key: JWKPublicKey): PublicJsonWebKey {
+  return {
+    kty: key.kty,
+    kid: key.kid,
+    use: key.use,
+    alg: key.alg,
+    crv: key.crv,
+    x: key.x,
+    y: key.y,
+  };
 }

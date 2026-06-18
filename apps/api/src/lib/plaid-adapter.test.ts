@@ -53,6 +53,55 @@ function fakeClient(): PlaidClientLike {
         ],
       },
     })),
+    transactionsSync: vi.fn(async () => ({
+      data: {
+        transactions_update_status: "HISTORICAL_UPDATE_COMPLETE",
+        accounts: [],
+        added: [
+          {
+            account_id: "plaid-checking-1",
+            amount: 12.34,
+            iso_currency_code: "CAD",
+            unofficial_currency_code: null,
+            date: "2026-06-01",
+            location: {},
+            name: "Coffee Shop",
+            merchant_name: "Coffee Shop",
+            payment_meta: {},
+            pending: false,
+            pending_transaction_id: null,
+            account_owner: null,
+            transaction_id: "txn-outflow",
+          },
+          {
+            account_id: "plaid-checking-1",
+            amount: -25,
+            iso_currency_code: "CAD",
+            unofficial_currency_code: null,
+            date: "2026-06-02",
+            location: {},
+            name: "Payroll",
+            merchant_name: null,
+            payment_meta: {},
+            pending: true,
+            pending_transaction_id: "pending-payroll",
+            account_owner: null,
+            transaction_id: "txn-inflow",
+          },
+        ],
+        modified: [],
+        removed: [{ account_id: "plaid-checking-1", transaction_id: "txn-removed" }],
+        next_cursor: "cursor-next",
+        has_more: false,
+        request_id: "req-3",
+      },
+    })),
+    webhookVerificationKeyGet: vi.fn(async () => ({
+      data: {
+        key: { kty: "EC", kid: "kid-1", use: "sig", alg: "ES256", crv: "P-256", x: "x", y: "y" },
+        request_id: "req-4",
+      },
+    })),
   } as unknown as PlaidClientLike;
 }
 
@@ -118,5 +167,48 @@ describe("plaid adapter", () => {
         currency: "CAD",
       },
     ]);
+  });
+
+  it("normalizes Plaid transaction signs once at the adapter boundary", async () => {
+    const client = fakeClient();
+    const adapter = createPlaidAdapter(client);
+
+    const result = await adapter.syncTransactions("access-sandbox-secret", "cursor-current");
+
+    expect(client.transactionsSync).toHaveBeenCalledWith({
+      access_token: "access-sandbox-secret",
+      cursor: "cursor-current",
+      count: 500,
+      options: { include_original_description: true },
+    });
+    expect(result).toEqual({
+      added: [
+        {
+          providerTransactionId: "txn-outflow",
+          providerAccountId: "plaid-checking-1",
+          date: new Date("2026-06-01T00:00:00.000Z"),
+          amountCents: -1234n,
+          currency: "CAD",
+          rawDescription: "Coffee Shop",
+          merchantName: "Coffee Shop",
+          pending: false,
+          pendingTransactionId: null,
+        },
+        {
+          providerTransactionId: "txn-inflow",
+          providerAccountId: "plaid-checking-1",
+          date: new Date("2026-06-02T00:00:00.000Z"),
+          amountCents: 2500n,
+          currency: "CAD",
+          rawDescription: "Payroll",
+          pending: true,
+          pendingTransactionId: "pending-payroll",
+        },
+      ],
+      modified: [],
+      removedProviderTransactionIds: ["txn-removed"],
+      nextCursor: "cursor-next",
+      hasMore: false,
+    });
   });
 });

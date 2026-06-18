@@ -9,7 +9,17 @@ import { accountsRouter } from "./modules/accounts/accounts.routes.js";
 import { budgetsRouter } from "./modules/budgets/budgets.routes.js";
 import { transactionsRouter } from "./modules/ingestion/ingestion.routes.js";
 import { transactionsAnalyticsRouter } from "./modules/transactions/transactions.routes.js";
+import { webhooksRouter } from "./modules/webhooks/webhooks.routes.js";
 import { errorMiddleware } from "./middleware/error.js";
+
+declare global {
+  // eslint-disable-next-line @typescript-eslint/no-namespace
+  namespace Express {
+    interface Request {
+      rawBody?: Buffer;
+    }
+  }
+}
 
 /**
  * Build the Express app. Routes are mounted here as epics land:
@@ -29,7 +39,14 @@ export function createApp(): Express {
   // oversized JSON body throws inside express.json, and the error handler needs
   // req.log to record it.
   app.use(pinoHttp({ level: config.NODE_ENV === "test" ? "silent" : "info" }));
-  app.use(express.json({ limit: "1mb" }));
+  app.use(
+    express.json({
+      limit: "1mb",
+      verify: (req, _res, buf) => {
+        (req as Request).rawBody = Buffer.from(buf);
+      },
+    }),
+  );
   app.use(cookieParser());
 
   app.get("/health", (_req: Request, res: Response) => {
@@ -41,6 +58,7 @@ export function createApp(): Express {
   app.use("/budgets", budgetsRouter);
   app.use("/transactions", transactionsRouter);
   app.use("/transactions", transactionsAnalyticsRouter);
+  app.use("/webhooks", webhooksRouter);
 
   // Central error handler — must be registered last, after all routes.
   app.use(errorMiddleware);

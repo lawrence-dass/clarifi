@@ -14,11 +14,14 @@ export const CanonicalTransaction = z.object({
   // the provider's own id). Backs the (account_id, provider_transaction_id)
   // idempotency key.
   providerTransactionId: z.string().min(1),
+  providerAccountId: z.string().min(1).optional(),
   date: z.date(),
   amountCents: z.bigint(), // signed: outflow < 0, inflow > 0
   currency: z.string().length(3), // ISO 4217, e.g. "CAD"
   rawDescription: z.string().min(1),
   merchantName: z.string().optional(),
+  pending: z.boolean().optional(),
+  pendingTransactionId: z.string().nullable().optional(),
 });
 
 export type CanonicalTransaction = z.infer<typeof CanonicalTransaction>;

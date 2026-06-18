@@ -15,7 +15,7 @@ context:
 
 # Story 4.2: Webhook ingestion with outbox & cursor sync
 
-Status: ready-for-dev
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -42,31 +42,31 @@ so that nothing is lost or duplicated.
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Adapter — `transactions/sync` + sign normalization (AC: #5, #7)
-  - [ ] Extend `apps/api/src/lib/plaid-adapter.ts` (the only `plaid` importer) with `syncTransactions(accessToken, cursor?) -> { added: CanonicalTransaction[]; modified: CanonicalTransaction[]; removedProviderTransactionIds: string[]; nextCursor: string; hasMore: boolean }`. Map Plaid transactions → `CanonicalTransaction`, normalizing sign once: Plaid `amount > 0` is an outflow → store negative cents; inflow positive. Use `dollarsToCents`; `providerTransactionId = transaction_id`. Keep the client injectable.
-  - [ ] Map `pending`/`account_id` fields through so Story 4.3 can build the lifecycle, but do not implement lifecycle transitions here.
+- [x] Task 1: Adapter — `transactions/sync` + sign normalization (AC: #5, #7)
+  - [x] Extend `apps/api/src/lib/plaid-adapter.ts` (the only `plaid` importer) with `syncTransactions(accessToken, cursor?) -> { added: CanonicalTransaction[]; modified: CanonicalTransaction[]; removedProviderTransactionIds: string[]; nextCursor: string; hasMore: boolean }`. Map Plaid transactions → `CanonicalTransaction`, normalizing sign once: Plaid `amount > 0` is an outflow → store negative cents; inflow positive. Use `dollarsToCents`; `providerTransactionId = transaction_id`. Keep the client injectable.
+  - [x] Map `pending`/`account_id` fields through so Story 4.3 can build the lifecycle, but do not implement lifecycle transitions here.
 
-- [ ] Task 2: Webhook endpoint (AC: #1, #2, #3)
-  - [ ] New `apps/api/src/modules/webhooks/` (`webhooks.routes.ts`, `webhooks.controller.ts`), mounted at `/webhooks` in `app.ts`. `POST /webhooks/plaid` is **unauthenticated** (Plaid-originated) — do NOT use `requireAuth`/`withUserContext` here.
-  - [ ] Verify the Plaid webhook (injectable verifier; real impl validates the `Plaid-Verification` JWT via the webhook verification key). Reject invalid → `4xx`, no side effects.
-  - [ ] On `SYNC_UPDATES_AVAILABLE` write the `plaid.sync_requested` outbox event and `requestPlaidSync` (enqueue); ack `200`. Ignore+ack other types. No Plaid calls / no sync in the handler.
+- [x] Task 2: Webhook endpoint (AC: #1, #2, #3)
+  - [x] New `apps/api/src/modules/webhooks/` (`webhooks.routes.ts`, `webhooks.controller.ts`), mounted at `/webhooks` in `app.ts`. `POST /webhooks/plaid` is **unauthenticated** (Plaid-originated) — do NOT use `requireAuth`/`withUserContext` here.
+  - [x] Verify the Plaid webhook (injectable verifier; real impl validates the `Plaid-Verification` JWT via the webhook verification key). Reject invalid → `4xx`, no side effects.
+  - [x] On `SYNC_UPDATES_AVAILABLE` write the `plaid.sync_requested` outbox event and `requestPlaidSync` (enqueue); ack `200`. Ignore+ack other types. No Plaid calls / no sync in the handler.
 
-- [ ] Task 3: Sync outbox + queue + worker (reuse Epic 2 pattern) (AC: #3, #4, #8, #9)
-  - [ ] Mirror `categorize.queue.ts` + `categorize.outbox.ts` + `workers/categorize.worker.ts`: a `transactions.sync` BullMQ queue, a `requestPlaidSync({ itemId })` that writes the outbox row then enqueues, a drainer (`startPlaidSyncOutboxDrainer`, registered in `workers/index.ts`), and a `plaid-sync.worker.ts`.
-  - [ ] Outbox payload Zod-validated; on dispatch failure increment `attempts` and leave unprocessed (mirror the existing drainer).
+- [x] Task 3: Sync outbox + queue + worker (reuse Epic 2 pattern) (AC: #3, #4, #8, #9)
+  - [x] Mirror `categorize.queue.ts` + `categorize.outbox.ts` + `workers/categorize.worker.ts`: a `transactions.sync` BullMQ queue, a `requestPlaidSync({ itemId })` that writes the outbox row then enqueues, a drainer (`startPlaidSyncOutboxDrainer`, registered in `workers/index.ts`), and a `plaid-sync.worker.ts`.
+  - [x] Outbox payload Zod-validated; on dispatch failure increment `attempts` and leave unprocessed (mirror the existing drainer).
 
-- [ ] Task 4: Sync service (AC: #4, #5, #6, #7, #8, #9)
-  - [ ] `processPlaidSyncJob({ itemId }, { adapter?, ... })`: base-client `prisma.plaidItem.findUnique({ where: { itemId } })` → `{ userId, accessTokenEncrypted, cursor }`; `decryptSecret` the token; loop `syncTransactions(token, cursor)` while `hasMore`.
-  - [ ] For each page, inside `withUserContext(userId)`: upsert added+modified on `(accountId, providerTransactionId)` (map each canonical txn to its `Account` via `providerAccountId` — the accounts exist from 4.1; skip/log txns whose account isn't found), then persist the new `cursor` on the `PlaidItem`. Keep money in `bigint` cents; never float.
-  - [ ] After ingesting, `requestCategorization` for each affected account. Never log the token or raw descriptions.
+- [x] Task 4: Sync service (AC: #4, #5, #6, #7, #8, #9)
+  - [x] `processPlaidSyncJob({ itemId }, { adapter?, ... })`: base-client `prisma.plaidItem.findUnique({ where: { itemId } })` → `{ userId, accessTokenEncrypted, cursor }`; `decryptSecret` the token; loop `syncTransactions(token, cursor)` while `hasMore`.
+  - [x] For each page, inside `withUserContext(userId)`: upsert added+modified on `(accountId, providerTransactionId)` (map each canonical txn to its `Account` via `providerAccountId` — the accounts exist from 4.1; skip/log txns whose account isn't found), then persist the new `cursor` on the `PlaidItem`. Keep money in `bigint` cents; never float.
+  - [x] After ingesting, `requestCategorization` for each affected account. Never log the token or raw descriptions.
 
-- [ ] Task 5: Config (AC: #2)
-  - [ ] Add any webhook-verification config needed (e.g. allow the verifier to fetch/cache the Plaid webhook verification key; reuse `PLAID_*`). Document in `.env.example`. Keep verification injectable/disable-in-test cleanly (no real Plaid in tests).
+- [x] Task 5: Config (AC: #2)
+  - [x] Add any webhook-verification config needed (e.g. allow the verifier to fetch/cache the Plaid webhook verification key; reuse `PLAID_*`). Document in `.env.example`. Keep verification injectable/disable-in-test cleanly (no real Plaid in tests).
 
-- [ ] Task 6: Tests & verification (AC: #1–#10)
-  - [ ] Webhook route test (Supertest): valid `SYNC_UPDATES_AVAILABLE` → `200` + one outbox row + adapter/sync NOT called in-handler; unverified → `4xx` + no outbox row; unknown type → `200` + no outbox row.
-  - [ ] Sync worker test (`hasDb` skip, fake adapter): seed a `PlaidItem` + its `Account`s (4.1 path or direct prisma); a sync page with added+modified → rows upserted with correct **negative** cents for outflows; re-run same cursor/page → no duplicates; cursor persisted and resumed; a thrown adapter error → `attempts++`, unprocessed, no dupes; categorization enqueued (assert `requestCategorization`/outbox row).
-  - [ ] Run `pnpm --filter @clarifi/api typecheck` and the new tests (migration `0007` applied). Use `--testTimeout=40000 --hookTimeout=40000` if the DB timeout trips.
+- [x] Task 6: Tests & verification (AC: #1–#10)
+  - [x] Webhook route test (Supertest): valid `SYNC_UPDATES_AVAILABLE` → `200` + one outbox row + adapter/sync NOT called in-handler; unverified → `4xx` + no outbox row; unknown type → `200` + no outbox row.
+  - [x] Sync worker test (`hasDb` skip, fake adapter): seed a `PlaidItem` + its `Account`s (4.1 path or direct prisma); a sync page with added+modified → rows upserted with correct **negative** cents for outflows; re-run same cursor/page → no duplicates; cursor persisted and resumed; a thrown adapter error → `attempts++`, unprocessed, no dupes; categorization enqueued (assert `requestCategorization`/outbox row).
+  - [x] Run `pnpm --filter @clarifi/api typecheck` and the new tests (migration `0007` applied). Use `--testTimeout=40000 --hookTimeout=40000` if the DB timeout trips.
 
 ## Dev Notes
 
@@ -148,12 +148,50 @@ New webhooks module + sync queue/outbox/worker mirroring Epic 2; adapter gains o
 
 ### Agent Model Used
 
+GPT-5 Codex
+
 ### Debug Log References
+
+- `PATH=/Users/lawrence/.nvm/versions/node/v22.22.3/bin:$PATH pnpm --filter @clarifi/api typecheck` → passed (`tsc --noEmit`).
+- `PATH=/Users/lawrence/.nvm/versions/node/v22.22.3/bin:$PATH pnpm --filter @clarifi/api exec vitest run src/lib/plaid-adapter.test.ts src/modules/webhooks/webhooks.routes.test.ts src/queues/plaid-sync.outbox.test.ts src/workers/plaid-sync.worker.test.ts --testTimeout=40000 --hookTimeout=40000` → passed; 4 files, 13 tests.
+- Guardrail scan: `rg "from ['\"]plaid['\"]|require\\(['\"]plaid['\"]\\)" apps packages -g "*.ts"` → only `apps/api/src/lib/plaid-adapter.ts`.
+- Guardrail scan: no `console.*`, `req.log`, or logger calls in `apps/api/src/modules/webhooks`, `apps/api/src/queues/plaid-sync.*.ts`, or `apps/api/src/workers/plaid-sync.worker.ts`.
+- BMAD code review: local Blind Hunter / Edge Case Hunter / Acceptance Auditor review completed. One patch finding was addressed by adding `plaid-sync.outbox.test.ts` coverage for drainer enqueue failure and attempts increment; reran typecheck/tests successfully.
 
 ### Completion Notes List
 
+- Implemented backend-only Plaid webhook ingestion: unauthenticated `POST /webhooks/plaid` verifies `Plaid-Verification`, writes a `plaid.sync_requested` outbox row for `TRANSACTIONS` / `SYNC_UPDATES_AVAILABLE`, and acks immediately. Unknown/irrelevant webhooks are verified, acked, and ignored.
+- Added injectable real webhook verifier using Plaid webhook verification keys via the existing Plaid adapter boundary and `jose`; tests inject a fake verifier, so no real Plaid network is used.
+- Added Plaid sync outbox/queue/worker mirroring the Epic 2 pattern: `requestPlaidSync`, `drainPlaidSyncOutbox`, `startPlaidSyncOutboxDrainer`, `transactions.sync` BullMQ queue, and `createPlaidSyncWorker` registered in `workers/index.ts`.
+- Added `syncTransactions` to the single Plaid adapter. Plaid positive amounts are normalized once at the adapter boundary to negative Clarifi cents using `dollarsToCents`; inflows become positive cents. The adapter maps added/modified/removed IDs, `account_id`, pending status, and `pending_transaction_id` into canonical data for Story 4.3.
+- Worker resolves `PlaidItem` by base-client `itemId`, decrypts `accessTokenEncrypted` only server-side, loops `transactions/sync` while `hasMore`, and writes every successful page under `withUserContext(userId)`.
+- Added+modified transactions upsert on `(accountId, providerTransactionId)` and cursor updates happen in the same RLS-scoped transaction per page. A later page failure leaves the outbox row unprocessed with `attempts++`; retry resumes from the last persisted cursor without duplicating prior rows.
+- Categorization uses the existing `requestCategorization` path after sync. It is never invoked from the webhook handler and never blocks the webhook ack.
+- No schema migration was added; Story 4.1 migration `0007_plaid_items` already supplies `PlaidItem.cursor`.
+- AC traceability: AC1/AC2/AC3 covered by `webhooks.routes.test.ts`; AC3 outbox enqueue/drainer failure by `plaid-sync.outbox.test.ts`; AC4/AC5/AC6/AC8/AC9 by `plaid-sync.worker.test.ts`; AC7 by `plaid-adapter.test.ts`; AC10 by the targeted test run above.
+
 ### File List
+
+- `_bmad-output/implementation-artifacts/4-2-webhook-ingestion-with-outbox-cursor-sync.md`
+- `_bmad-output/implementation-artifacts/sprint-status.yaml`
+- `.env.example`
+- `apps/api/src/app.ts`
+- `apps/api/src/lib/plaid-adapter.ts`
+- `apps/api/src/lib/plaid-adapter.test.ts`
+- `apps/api/src/modules/accounts/accounts.routes.test.ts`
+- `apps/api/src/modules/webhooks/plaid-webhook-verifier.ts`
+- `apps/api/src/modules/webhooks/webhooks.controller.ts`
+- `apps/api/src/modules/webhooks/webhooks.routes.ts`
+- `apps/api/src/modules/webhooks/webhooks.routes.test.ts`
+- `apps/api/src/queues/plaid-sync.outbox.ts`
+- `apps/api/src/queues/plaid-sync.outbox.test.ts`
+- `apps/api/src/queues/plaid-sync.queue.ts`
+- `apps/api/src/workers/index.ts`
+- `apps/api/src/workers/plaid-sync.worker.ts`
+- `apps/api/src/workers/plaid-sync.worker.test.ts`
+- `packages/shared/src/canonical.ts`
 
 ## Change Log
 
 - 2026-06-18: Story created (ready-for-dev). Scope is reliable Plaid ingestion — verified webhook → durable outbox → immediate ack, and an outbox-backed worker that cursor-syncs `transactions/sync`, normalizes sign once in the adapter, and upserts added+modified idempotently on `(account_id, provider_transaction_id)` under RLS, advancing the cursor retry-safely and enqueuing categorization. Removed/lifecycle deferred to 4.3. Reuses the Epic 2 outbox/queue/worker pattern and the 4.1 crypto/adapter/PlaidItem. No schema change. Not implemented.
+- 2026-06-18: Implemented Story 4.2 webhook/outbox/cursor sync, sign-normalizing Plaid adapter mapping, RLS-scoped worker upserts, retry-safe cursor handling, and categorization enqueue reuse. Passed API typecheck and targeted webhook/outbox/worker/adapter tests. BMAD code review completed with all findings fixed. Status set to done.

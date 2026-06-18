@@ -82,6 +82,12 @@ function fakeAdapter(input?: {
         ],
       };
     },
+    async syncTransactions() {
+      throw new Error("not used");
+    },
+    async getWebhookVerificationKey() {
+      throw new Error("not used");
+    },
   };
 }
 
