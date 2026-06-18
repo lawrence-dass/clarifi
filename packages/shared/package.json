@@ -7,6 +7,7 @@
   "types": "./src/index.ts",
   "exports": {
     ".": "./src/index.ts",
+    "./money-display": "./src/money-display.ts",
     "./prisma": "./src/prisma.ts"
   },
   "scripts": {

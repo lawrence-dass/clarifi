@@ -8,6 +8,7 @@
  */
 
 import { TransactionDirection } from "./generated/prisma/client.js";
+export { formatCents } from "./money-display.js";
 
 /**
  * Convert a decimal dollar amount (e.g. from a CSV or API) to integer cents.
@@ -20,19 +21,6 @@ export function dollarsToCents(dollars: number): bigint {
   // Round in float space then convert — input is already an imprecise float,
   // so this is the safe one-time crossing into the integer domain.
   return BigInt(Math.round(dollars * 100));
-}
-
-/** Format integer cents as a localized currency string (display layer only). */
-export function formatCents(
-  cents: bigint,
-  currency = "CAD",
-  locale = "en-CA",
-): string {
-  const dollars = Number(cents) / 100;
-  return new Intl.NumberFormat(locale, {
-    style: "currency",
-    currency,
-  }).format(dollars);
 }
 
 /** Derive the direction enum from a signed cents amount. */

@@ -14,7 +14,7 @@ context:
 
 # Story 3.5: Web app foundation & shell
 
-Status: ready-for-dev
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -40,34 +40,38 @@ so that I (and every later feature UI) can reach protected pages backed by a sha
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Dependencies & config (AC: #1, #6, #8, #9)
-  - [ ] Add to `apps/web`: `@tanstack/react-query` (5.x), the chosen chart lib (see open questions; default Recharts — verify React 19 support), shadcn/ui deps (`class-variance-authority`, `tailwind-merge`, `clsx`, Radix primitives as needed), and dev deps `vitest`, `@testing-library/react`, `@testing-library/jest-dom`, `jsdom`.
-  - [ ] Add `NEXT_PUBLIC_API_URL` to `.env.example` and read it in the api-client. Keep `transpilePackages: ["@clarifi/shared"]`.
-  - [ ] Add a `vitest.config.ts` (jsdom environment) and `test`/`typecheck` scripts to `apps/web/package.json`.
+- [x] Task 1: Dependencies & config (AC: #1, #6, #8, #9)
+  - [x] Add to `apps/web`: `@tanstack/react-query` (5.x), the chosen chart lib (see open questions; default Recharts — verify React 19 support), shadcn/ui deps (`class-variance-authority`, `tailwind-merge`, `clsx`, Radix primitives as needed), and dev deps `vitest`, `@testing-library/react`, `@testing-library/jest-dom`, `jsdom`.
+  - [x] Add `NEXT_PUBLIC_API_URL` to `.env.example` and read it in the api-client. Keep `transpilePackages: ["@clarifi/shared"]`.
+  - [x] Add a `vitest.config.ts` (jsdom environment) and `test`/`typecheck` scripts to `apps/web/package.json`.
 
-- [ ] Task 2: API client + error model (AC: #2, #9)
-  - [ ] `apps/web/src/lib/api-client.ts`: a small typed fetch wrapper — `credentials: "include"`, JSON headers, base URL from env, and parse `{ error: { code, message, details? } }` into a typed `ApiError`. No token handling in JS.
-  - [ ] `apps/web/src/lib/query-client.ts`: a configured `QueryClient` (sensible defaults; no retry on 401).
+- [x] Task 2: API client + error model (AC: #2, #9)
+  - [x] `apps/web/src/lib/api-client.ts`: a small typed fetch wrapper — `credentials: "include"`, JSON headers, base URL from env, and parse `{ error: { code, message, details? } }` into a typed `ApiError`. No token handling in JS.
+  - [x] `apps/web/src/lib/query-client.ts`: a configured `QueryClient` (sensible defaults; no retry on 401).
 
-- [ ] Task 3: Providers & shell (AC: #1, #7)
-  - [ ] A client `Providers` component (QueryClientProvider) wired into `app/layout.tsx`.
-  - [ ] A base authenticated layout/shell (header + nav placeholder + content) under a route group (e.g. `app/(app)/layout.tsx` or `app/dashboard/layout.tsx`).
-  - [ ] Shared `<Loading/>` and `<ErrorState/>` components and a documented usage pattern.
+- [x] Task 3: Providers & shell (AC: #1, #7)
+  - [x] A client `Providers` component (QueryClientProvider) wired into `app/layout.tsx`.
+  - [x] A base authenticated layout/shell (header + nav placeholder + content) under a route group (e.g. `app/(app)/layout.tsx` or `app/dashboard/layout.tsx`).
+  - [x] Shared `<Loading/>` and `<ErrorState/>` components and a documented usage pattern.
 
-- [ ] Task 4: Auth UI + transport (AC: #3, #4, #5)
-  - [ ] Sign-in and sign-up pages (`app/(auth)/sign-in`, `app/(auth)/sign-up`) using React Hook Form + Zod, posting via the api-client; a sign-out action.
-  - [ ] An auth/session hook (e.g. `useSession` calling `GET /auth/me`) and a protected-route guard that redirects to sign-in on `401`.
-  - [ ] Implement the default BFF Route Handlers under `app/api/*` that proxy to the Express API and forward cookies (or, if the direct-cross-origin alternative is chosen, document why and ensure CORS+credentials work). Keep the api-client pointed at the same-origin BFF.
+- [x] Task 4: Auth UI + transport (AC: #3, #4, #5)
+  - [x] Sign-in and sign-up pages (`app/(auth)/sign-in`, `app/(auth)/sign-up`) using React Hook Form + Zod, posting via the api-client; a sign-out action.
+  - [x] An auth/session hook (e.g. `useSession` calling `GET /auth/me`) and a protected-route guard that redirects to sign-in on `401`.
+  - [x] Implement the default BFF Route Handlers under `app/api/*` that proxy to the Express API and forward cookies (or, if the direct-cross-origin alternative is chosen, document why and ensure CORS+credentials work). Keep the api-client pointed at the same-origin BFF.
 
-- [ ] Task 5: Charting + UI primitive smoke (AC: #6)
-  - [ ] Initialize shadcn/ui (Tailwind already present) and add the few primitives 3.6 will need (card, skeleton, etc.).
-  - [ ] A trivial chart smoke (a tiny static chart component) to prove the chart lib compiles under React 19 / Next 16 — real charts are 3.6.
-  - [ ] A display-layer money formatter wrapping `formatCents` from `@clarifi/shared`.
+- [x] Task 5: Charting + UI primitive smoke (AC: #6)
+  - [x] Initialize shadcn/ui (Tailwind already present) and add the few primitives 3.6 will need (card, skeleton, etc.).
+  - [x] A trivial chart smoke (a tiny static chart component) to prove the chart lib compiles under React 19 / Next 16 — real charts are 3.6.
+  - [x] A display-layer money formatter wrapping `formatCents` from `@clarifi/shared`.
 
-- [ ] Task 6: Tests & verification (AC: #8)
-  - [ ] `api-client.test.ts` (fetch mocked): asserts `credentials: "include"`, JSON handling, and error-envelope → `ApiError` mapping.
-  - [ ] An auth-guard unit test: `401`/no session → redirect to sign-in; valid session → renders children.
-  - [ ] Run `pnpm --filter @clarifi/web typecheck`, `pnpm --filter @clarifi/web test`, and `pnpm --filter @clarifi/web build`. Optionally drive the app via the `run`/`verify` skills to confirm sign-in → shell manually.
+- [x] Task 6: Tests & verification (AC: #8)
+  - [x] `api-client.test.ts` (fetch mocked): asserts `credentials: "include"`, JSON handling, and error-envelope → `ApiError` mapping.
+  - [x] An auth-guard unit test: `401`/no session → redirect to sign-in; valid session → renders children.
+  - [x] Run `pnpm --filter @clarifi/web typecheck`, `pnpm --filter @clarifi/web test`, and `pnpm --filter @clarifi/web build`. Optionally drive the app via the `run`/`verify` skills to confirm sign-in → shell manually.
+
+### Review Findings
+- [x] [Review][Patch] Sign-up redirected with only cached session data, not httpOnly auth cookies [`apps/web/src/app/(auth)/sign-up/page.tsx`] — fixed by logging in immediately after successful registration through the same apiClient, so the API sets access and refresh cookies before navigating to `/dashboard`.
+- [x] [Review][Patch] BFF relayed the API refresh cookie with `Path=/auth`, so browser requests to `/api/auth/*` would not include it [`apps/web/src/app/api/[...path]/route.ts`] — fixed by rewriting only API auth cookie paths to `/api/auth` and adding a regression test for the rewrite.
 
 ## Dev Notes
 
@@ -135,13 +139,71 @@ Expected additions (under `apps/web/src`): `lib/api-client.ts`, `lib/query-clien
 ## Dev Agent Record
 
 ### Agent Model Used
+GPT-5 Codex
 
 ### Debug Log References
+- 2026-06-17: Added web foundation dependencies and lockfile updates with `pnpm install --no-frozen-lockfile`.
+- 2026-06-17: Initial web build exposed that the `@clarifi/shared` barrel imports server/Prisma modules into the client bundle. Root-cause fix: moved the display formatter into `@clarifi/shared/money-display` and kept `packages/shared/src/money.ts` re-exporting the same formatter.
+- 2026-06-17: Initial sandboxed Next build failed because Turbopack/PostCSS needed to spawn a helper process that binds a local port; reran `pnpm --filter @clarifi/web build` outside the sandbox for the real gate.
+- 2026-06-17: Moved API env validation from module load to request/call time so Next prerender/build does not require runtime API env injection.
+- 2026-06-17: Wrapped the sign-in page's `useSearchParams` usage in `Suspense` to satisfy Next 16 prerender requirements.
+- 2026-06-17: Code review found and fixed two auth transport issues: sign-up now performs register+login to set httpOnly cookies, and the BFF rewrites refresh-cookie `Path=/auth` to same-origin `Path=/api/auth`.
 
 ### Completion Notes List
+- Implemented the Next web foundation: root TanStack Query provider, configured QueryClient, protected `(app)` route group, authenticated shell, landing page links, minimal sign-in/sign-up pages, sign-out action, and `/dashboard` smoke page.
+- Implemented a single typed `apiClient` with `credentials: "include"`, JSON body handling, central error-envelope parsing to `ApiError`, and no token/cookie reads in JavaScript.
+- Implemented thin same-origin BFF route handlers at `apps/web/src/app/api/[...path]/route.ts` that forward methods, request bodies, incoming cookies, and upstream `Set-Cookie` headers to the Express API.
+- Added reusable loading/error components and shadcn-style UI primitives (`Button`, `Input`, `Card`, `Skeleton`) plus a Recharts smoke component.
+- Added `formatMoney` as the web display boundary, wrapping shared `formatCents` through a client-safe `@clarifi/shared/money-display` subpath. The frontend performs no monetary arithmetic.
+- AC traceability: AC1 via `Providers`, protected layout, shell, landing page; AC2 via `api-client.test.ts`; AC3/AC4 via auth pages, `useSession`, `AuthGuard`, `auth-guard.test.tsx`; AC5 via BFF route handler; AC6 via package deps, UI primitives, chart smoke, formatter; AC7 via `Loading`/`ErrorState` and dashboard usage note; AC8 via web typecheck/test/build evidence below; AC9 via `.env.example`, client-only `NEXT_PUBLIC_API_URL`, server-only `API_UPSTREAM_URL`, and no token storage.
+- Verification evidence:
+  - `pnpm --filter @clarifi/web typecheck` — passed (`tsc --noEmit`).
+  - `pnpm --filter @clarifi/web test` — passed before review fixes (2 files, 4 tests); passed after review fixes (3 files, 6 tests).
+  - `pnpm --filter @clarifi/web build` — passed (Next.js 16.2.9, routes `/`, `/api/[...path]`, `/dashboard`, `/sign-in`, `/sign-up`).
+  - `pnpm --filter @clarifi/shared typecheck` — passed after the formatter subpath change.
+  - `pnpm --filter @clarifi/shared exec vitest run src/money.test.ts` — passed (1 file, 8 tests).
+  - `pnpm --filter @clarifi/shared test` was also attempted; `auth.test.ts` and `money.test.ts` passed, but the DB-backed `rls.test.ts` failed because the shell could not reach the configured Supabase host.
+- Environment note: commands emitted the existing Node warning because this shell is `v20.16.0` while the repo wants `>=20.19`; the requested gates still completed as recorded.
 
 ### File List
+- `.env.example`
+- `_bmad-output/implementation-artifacts/3-5-web-app-foundation.md`
+- `_bmad-output/implementation-artifacts/sprint-status.yaml`
+- `apps/web/package.json`
+- `apps/web/vitest.config.ts`
+- `apps/web/src/app/layout.tsx`
+- `apps/web/src/app/page.tsx`
+- `apps/web/src/app/(app)/layout.tsx`
+- `apps/web/src/app/(app)/dashboard/page.tsx`
+- `apps/web/src/app/(auth)/sign-in/page.tsx`
+- `apps/web/src/app/(auth)/sign-up/page.tsx`
+- `apps/web/src/app/api/[...path]/route.ts`
+- `apps/web/src/app/api/[...path]/route.test.ts`
+- `apps/web/src/components/app-shell.tsx`
+- `apps/web/src/components/auth-guard.tsx`
+- `apps/web/src/components/auth-guard.test.tsx`
+- `apps/web/src/components/chart-smoke.tsx`
+- `apps/web/src/components/error-state.tsx`
+- `apps/web/src/components/loading.tsx`
+- `apps/web/src/components/providers.tsx`
+- `apps/web/src/components/ui/button.tsx`
+- `apps/web/src/components/ui/card.tsx`
+- `apps/web/src/components/ui/input.tsx`
+- `apps/web/src/components/ui/skeleton.tsx`
+- `apps/web/src/lib/api-client.ts`
+- `apps/web/src/lib/api-client.test.ts`
+- `apps/web/src/lib/auth.ts`
+- `apps/web/src/lib/format-money.ts`
+- `apps/web/src/lib/query-client.ts`
+- `apps/web/src/lib/utils.ts`
+- `apps/web/src/test/setup.ts`
+- `packages/shared/package.json`
+- `packages/shared/src/money-display.ts`
+- `packages/shared/src/money.ts`
+- `pnpm-lock.yaml`
 
 ## Change Log
 
 - 2026-06-17: Story created (ready-for-dev). Scope is the one-time web foundation — TanStack Query provider, single api-client, httpOnly-cookie auth (minimal sign-in/up/out + protected routing via a thin BFF), charting + shadcn/ui primitives, loading/error conventions, and web test infra. Web-only; no backend or schema change. Closes the deferred Epic-1 auth-UI gap minimally and seeds the foundation 3.6 + later feature UIs reuse. Not implemented.
+- 2026-06-17: Implemented web foundation and moved story to review. Added same-origin BFF transport, single API client, auth UI/guard, shell, UI/loading/error primitives, Recharts smoke, client-safe shared money formatter export, and web test infrastructure.
+- 2026-06-17: Completed code review fixes and marked story done. Fixed sign-up cookie issuance and BFF refresh-cookie path rewriting; re-ran web typecheck, tests, and build successfully.
