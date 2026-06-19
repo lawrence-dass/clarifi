@@ -22,7 +22,7 @@ export interface DetectionInput {
 export interface DetectedAnomaly {
   type: AnomalyType;
   severity: AnomalySeverity;
-  // z-score for merchant type; raw charge count for velocity
+  // z-score for merchant/amount types; raw charge count for velocity
   score: number;
 }
 
@@ -35,8 +35,26 @@ export async function detectAnomalies(
   const velocity = await checkVelocity(input, tx);
   if (velocity) results.push(velocity);
 
-  const merchant = await checkMerchantAnomaly(input, tx);
-  if (merchant) results.push(merchant);
+  // Merchant and amount anomalies are mutually exclusive (new vs established merchant).
+  // Compute priorCount once to avoid duplicate queries.
+  if (input.merchantName && input.amountCents < 0n) {
+    const priorCount = await tx.transaction.count({
+      where: {
+        userId: input.userId,
+        merchantName: input.merchantName,
+        id: { not: input.transactionId },
+        status: { not: TransactionStatus.removed },
+      },
+    });
+
+    if (priorCount < MIN_SAMPLES) {
+      const merchant = await checkMerchantAnomaly(input, priorCount, tx);
+      if (merchant) results.push(merchant);
+    } else {
+      const amount = await checkAmountAnomaly(input, tx);
+      if (amount) results.push(amount);
+    }
+  }
 
   return results;
 }
@@ -74,22 +92,9 @@ async function checkVelocity(
 // baseline. Income (amountCents >= 0) is not scored — anomaly detection targets expenses.
 async function checkMerchantAnomaly(
   input: DetectionInput,
+  priorCount: number,
   tx: Prisma.TransactionClient,
 ): Promise<DetectedAnomaly | null> {
-  if (!input.merchantName) return null;
-  if (input.amountCents >= 0n) return null;
-
-  // Count prior (non-current, non-removed) transactions at this merchant.
-  const priorCount = await tx.transaction.count({
-    where: {
-      userId: input.userId,
-      merchantName: input.merchantName,
-      id: { not: input.transactionId },
-      status: { not: TransactionStatus.removed },
-    },
-  });
-
-  // Merchant anomaly only applies when the merchant is "new" to this user.
   if (priorCount >= MIN_SAMPLES) return null;
 
   // Use category/global baseline (merchantName: null) — the merchant's own history
@@ -110,6 +115,30 @@ async function checkMerchantAnomaly(
 
   return {
     type: AnomalyType.merchant,
+    severity: classifyZScoreSeverity(zScore),
+    score: zScore,
+  };
+}
+
+// checkAmountAnomaly flags debit transactions at an established merchant (>= MIN_SAMPLES)
+// whose amount significantly exceeds that merchant's own robust baseline.
+async function checkAmountAnomaly(
+  input: DetectionInput,
+  tx: Prisma.TransactionClient,
+): Promise<DetectedAnomaly | null> {
+  const baseline = await resolveBaseline(
+    { userId: input.userId, merchantName: input.merchantName, category: input.category },
+    tx,
+  );
+
+  const absAmount = Math.abs(centsToNumber(input.amountCents));
+  const absMedian = Math.abs(baseline.median);
+  const zScore = modifiedZScore(absAmount, absMedian, baseline.mad);
+
+  if (zScore <= MODIFIED_Z_SCORE_THRESHOLD) return null;
+
+  return {
+    type: AnomalyType.amount,
     severity: classifyZScoreSeverity(zScore),
     score: zScore,
   };

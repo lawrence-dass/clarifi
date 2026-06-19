@@ -469,3 +469,117 @@ describe.skipIf(!hasDb)("detectAnomalies — merchant anomaly", () => {
     expect(merchantResult?.severity).toBe(AnomalySeverity.critical);
   }, 40_000);
 });
+
+describe.skipIf(!hasDb)("detectAnomalies — amount anomaly", () => {
+  it("returns amount anomaly for established merchant with high z-score", async () => {
+    const { user, account } = await seedUser();
+    const merchant = "Consistent Coffee";
+
+    // Seed MIN_SAMPLES established transactions all at ~-3000 cents ($30)
+    const dates: Date[] = [];
+    for (let i = 0; i < MIN_SAMPLES; i++) {
+      const d = new Date(`2026-0${i + 1}-01T00:00:00.000Z`);
+      dates.push(d);
+      await createTransaction(user.id, account.id, {
+        amountCents: BigInt(-3000 + i * 20), // small variation around -3000
+        merchantName: merchant,
+        category: Category.food_and_dining,
+        date: d,
+      });
+    }
+
+    // A charge of -500000 cents ($5000) — way above the merchant baseline
+    const now = new Date();
+    const txn = await createTransaction(user.id, account.id, {
+      amountCents: -500000n,
+      merchantName: merchant,
+      category: Category.food_and_dining,
+      date: now,
+    });
+
+    const input: DetectionInput = {
+      transactionId: txn.id,
+      userId: user.id,
+      merchantName: merchant,
+      category: Category.food_and_dining,
+      amountCents: txn.amountCents,
+      occurredAt: txn.date,
+    };
+
+    const results = await withUserContext(user.id, (tx) => detectAnomalies(input, tx));
+    const amountResult = results.find((r) => r.type === AnomalyType.amount);
+    expect(amountResult).toBeDefined();
+    expect(amountResult?.score).toBeGreaterThan(MODIFIED_Z_SCORE_THRESHOLD);
+    expect(amountResult?.severity).toBe(AnomalySeverity.critical);
+  }, 40_000);
+
+  it("no amount anomaly for established merchant with normal amount", async () => {
+    const { user, account } = await seedUser();
+    const merchant = "Regular Grocer";
+
+    for (let i = 0; i < MIN_SAMPLES; i++) {
+      await createTransaction(user.id, account.id, {
+        amountCents: BigInt(-5000 + i * 50),
+        merchantName: merchant,
+        category: Category.food_and_dining,
+        date: new Date(`2026-0${i + 1}-01T00:00:00.000Z`),
+      });
+    }
+
+    // Normal charge close to baseline
+    const txn = await createTransaction(user.id, account.id, {
+      amountCents: -5100n,
+      merchantName: merchant,
+      category: Category.food_and_dining,
+      date: new Date(),
+    });
+
+    const input: DetectionInput = {
+      transactionId: txn.id,
+      userId: user.id,
+      merchantName: merchant,
+      category: Category.food_and_dining,
+      amountCents: txn.amountCents,
+      occurredAt: txn.date,
+    };
+
+    const results = await withUserContext(user.id, (tx) => detectAnomalies(input, tx));
+    expect(results.some((r) => r.type === AnomalyType.amount)).toBe(false);
+  }, 40_000);
+
+  it("amount anomaly is not raised when merchant has fewer than MIN_SAMPLES transactions", async () => {
+    const { user, account } = await seedUser();
+    const merchant = "Thin History Store";
+
+    // Only MIN_SAMPLES - 1 prior transactions
+    for (let i = 0; i < MIN_SAMPLES - 1; i++) {
+      await createTransaction(user.id, account.id, {
+        amountCents: -2000n,
+        merchantName: merchant,
+        category: Category.shopping,
+        date: new Date(`2026-0${i + 1}-01T00:00:00.000Z`),
+      });
+    }
+
+    const txn = await createTransaction(user.id, account.id, {
+      amountCents: -500000n,
+      merchantName: merchant,
+      category: Category.shopping,
+      date: new Date(),
+    });
+
+    const input: DetectionInput = {
+      transactionId: txn.id,
+      userId: user.id,
+      merchantName: merchant,
+      category: Category.shopping,
+      amountCents: txn.amountCents,
+      occurredAt: txn.date,
+    };
+
+    const results = await withUserContext(user.id, (tx) => detectAnomalies(input, tx));
+    // Should get merchant anomaly (new merchant), NOT amount anomaly
+    expect(results.some((r) => r.type === AnomalyType.amount)).toBe(false);
+    expect(results.some((r) => r.type === AnomalyType.merchant)).toBe(true);
+  }, 40_000);
+});

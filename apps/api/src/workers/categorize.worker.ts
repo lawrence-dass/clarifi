@@ -5,6 +5,7 @@ import {
   TransactionStatus,
   withUserContext,
 } from "@clarifi/shared";
+import { detectAndPersist } from "../modules/anomaly/persist.js";
 import { config } from "../config.js";
 import {
   categorizeBatch,
@@ -65,7 +66,7 @@ export async function processCategorizeJob(
           category: null,
           status: { not: TransactionStatus.removed },
         },
-        select: { id: true, rawDescription: true },
+        select: { id: true, rawDescription: true, amountCents: true, date: true },
         orderBy: { date: "asc" },
         take: config.CATEGORIZE_BATCH_SIZE,
       }),
@@ -109,6 +110,14 @@ export async function processCategorizeJob(
               categorizedAt: now,
             },
           });
+          await safeDetectAndPersist({
+            transactionId: transaction.id,
+            userId: data.userId,
+            merchantName: transaction.merchantName,
+            category: transaction.cached.category,
+            amountCents: transaction.amountCents,
+            occurredAt: transaction.date,
+          }, tx);
         }
       });
     }
@@ -170,6 +179,14 @@ export async function processCategorizeJob(
             categorizedAt: now,
           },
         });
+        await safeDetectAndPersist({
+          transactionId: transaction.id,
+          userId: data.userId,
+          merchantName: transaction.merchantName,
+          category: result.category,
+          amountCents: transaction.amountCents,
+          occurredAt: transaction.date,
+        }, tx);
         if (
           transaction.merchantName &&
           !fallbackUsed &&
@@ -244,6 +261,18 @@ async function validateAndJudgeResults(
   } catch {
     warnJudgeDegraded();
     return { results: validatedResults, excludeFromCache };
+  }
+}
+
+// Detection failure must never block categorization — anomaly detection is best-effort.
+async function safeDetectAndPersist(
+  input: Parameters<typeof detectAndPersist>[0],
+  tx: Parameters<typeof detectAndPersist>[1],
+): Promise<void> {
+  try {
+    await detectAndPersist(input, tx);
+  } catch (err) {
+    console.warn("[categorize] anomaly detection failed, skipping:", err);
   }
 }
 
