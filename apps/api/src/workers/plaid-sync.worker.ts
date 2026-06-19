@@ -156,10 +156,14 @@ async function persistPlaidSyncPage(
 
     // Supersession: a posted txn arriving with a pendingTransactionId links to the prior
     // pending row — mark that row removed. updateMany is a no-op if the row is absent,
-    // keeping this idempotent on replay.
+    // keeping this idempotent on replay. Guard !t.pending so a still-pending modified txn
+    // with a non-null pendingTransactionId doesn't prematurely remove its predecessor.
+    // Guard status: pending so a same-page in-place post (upserted to posted above) is
+    // never overwritten to removed by a concurrent supersession entry for the same id.
     const supersededIds = [...added, ...modified]
-      .filter((t) => t.pendingTransactionId != null)
-      .map((t) => t.pendingTransactionId as string);
+      .filter((t): t is CanonicalTransaction & { pendingTransactionId: string } =>
+        t.pendingTransactionId != null && !t.pending)
+      .map((t) => t.pendingTransactionId);
 
     if (supersededIds.length > 0 && accountIds.length > 0) {
       await tx.transaction.updateMany({
@@ -167,6 +171,7 @@ async function persistPlaidSyncPage(
           provider: Provider.plaid,
           accountId: { in: accountIds },
           providerTransactionId: { in: supersededIds },
+          status: TransactionStatus.pending,
         },
         data: { status: TransactionStatus.removed },
       });

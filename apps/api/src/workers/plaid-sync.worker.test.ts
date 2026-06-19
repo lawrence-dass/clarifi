@@ -319,6 +319,77 @@ describe.skipIf(!hasDb)("processPlaidSyncJob", () => {
     });
   }, 40_000);
 
+  it("still-pending modified transaction with pendingTransactionId does not trigger supersession", async () => {
+    const seeded = await seedLinkedItem();
+
+    // Seed an old pending row
+    await processPlaidSyncJob(
+      { itemId: seeded.itemId },
+      fakeOptions(vi.fn(async () => ({
+        added: [canonical({ providerTransactionId: "txn-old-pending", providerAccountId: seeded.checkingProviderAccountId, amountCents: -2000n, pending: true })],
+        modified: [],
+        removedProviderTransactionIds: [],
+        nextCursor: "cursor-1",
+        hasMore: false,
+      }))),
+    );
+
+    // A still-pending modified txn arrives carrying pendingTransactionId — supersession must NOT fire
+    await processPlaidSyncJob(
+      { itemId: seeded.itemId },
+      fakeOptions(vi.fn(async () => ({
+        added: [],
+        modified: [canonical({ providerTransactionId: "txn-new-pending", providerAccountId: seeded.checkingProviderAccountId, amountCents: -2000n, pending: true, pendingTransactionId: "txn-old-pending" })],
+        removedProviderTransactionIds: [],
+        nextCursor: "cursor-2",
+        hasMore: false,
+      }))),
+    );
+
+    const rows = await withUserContext(seeded.user.id, (tx) =>
+      tx.transaction.findMany({ orderBy: { providerTransactionId: "asc" } }),
+    );
+    expect(rows).toHaveLength(2);
+    expect(rows.find((r) => r.providerTransactionId === "txn-old-pending")).toMatchObject({ status: TransactionStatus.pending });
+    expect(rows.find((r) => r.providerTransactionId === "txn-new-pending")).toMatchObject({ status: TransactionStatus.pending, pendingTransactionId: "txn-old-pending" });
+  }, 40_000);
+
+  it("same-page in-place post and supersession for the same id: posted row is not overwritten to removed", async () => {
+    const seeded = await seedLinkedItem();
+
+    // Seed txn-a as pending
+    await processPlaidSyncJob(
+      { itemId: seeded.itemId },
+      fakeOptions(vi.fn(async () => ({
+        added: [canonical({ providerTransactionId: "txn-a", providerAccountId: seeded.checkingProviderAccountId, amountCents: -1000n, pending: true })],
+        modified: [],
+        removedProviderTransactionIds: [],
+        nextCursor: "cursor-1",
+        hasMore: false,
+      }))),
+    );
+
+    // Same page: txn-a in-place posts (modified) AND txn-b arrives with pendingTransactionId="txn-a"
+    // The status: pending guard on the supersession updateMany must prevent txn-a from being overwritten to removed
+    await processPlaidSyncJob(
+      { itemId: seeded.itemId },
+      fakeOptions(vi.fn(async () => ({
+        added: [canonical({ providerTransactionId: "txn-b", providerAccountId: seeded.checkingProviderAccountId, amountCents: -1000n, pending: false, pendingTransactionId: "txn-a" })],
+        modified: [canonical({ providerTransactionId: "txn-a", providerAccountId: seeded.checkingProviderAccountId, amountCents: -1000n, pending: false })],
+        removedProviderTransactionIds: [],
+        nextCursor: "cursor-2",
+        hasMore: false,
+      }))),
+    );
+
+    const rows = await withUserContext(seeded.user.id, (tx) =>
+      tx.transaction.findMany({ orderBy: { providerTransactionId: "asc" } }),
+    );
+    expect(rows).toHaveLength(2);
+    expect(rows.find((r) => r.providerTransactionId === "txn-a")).toMatchObject({ status: TransactionStatus.posted });
+    expect(rows.find((r) => r.providerTransactionId === "txn-b")).toMatchObject({ status: TransactionStatus.posted, pendingTransactionId: "txn-a" });
+  }, 40_000);
+
   it("removed ids: marks matching rows removed (row kept), and re-running the same removal page is idempotent", async () => {
     const seeded = await seedLinkedItem();
 

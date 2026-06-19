@@ -7,6 +7,7 @@ import {
   CategorySource,
   Provider,
   TransactionDirection,
+  TransactionStatus,
 } from "@clarifi/shared";
 import { config } from "../config.js";
 import {
@@ -572,6 +573,24 @@ describe.skipIf(!hasDb)("processCategorizeJob", () => {
     expect(row.categorySource).toBe(CategorySource.llm);
     expect(row.categoryConfidence).toBe(0);
     expect(row.categorizedAt).toBeInstanceOf(Date);
+  }, 10_000);
+
+  it("does not categorize removed transactions (regression: 4.3 lifecycle)", async () => {
+    const { user, account, transaction } = await seedTransaction("COFFEE SHOP");
+    await prisma.transaction.update({
+      where: { id: transaction.id },
+      data: { status: TransactionStatus.removed },
+    });
+    const gateway: CategorizationGateway = {
+      categorizeBatch: async (items) => {
+        throw new Error(`gateway must not be called for removed transactions; got: ${JSON.stringify(items)}`);
+      },
+    };
+
+    await processCategorizeJob({ userId: user.id, accountId: account.id }, { gateway });
+
+    const row = await prisma.transaction.findUniqueOrThrow({ where: { id: transaction.id } });
+    expect(row.category).toBeNull();
   }, 10_000);
 
   it("processes every uncategorized transaction across multiple batches", async () => {

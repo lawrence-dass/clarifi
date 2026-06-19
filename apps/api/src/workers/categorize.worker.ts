@@ -2,6 +2,7 @@ import { Worker, type Job } from "bullmq";
 import {
   Category,
   CategorySource,
+  TransactionStatus,
   withUserContext,
 } from "@clarifi/shared";
 import { config } from "../config.js";
@@ -62,6 +63,7 @@ export async function processCategorizeJob(
         where: {
           accountId: data.accountId,
           category: null,
+          status: { not: TransactionStatus.removed },
         },
         select: { id: true, rawDescription: true },
         orderBy: { date: "asc" },

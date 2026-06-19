@@ -13,7 +13,7 @@ context:
 
 # Story 4.3: Transaction lifecycle (pending → posted → removed)
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -166,3 +166,4 @@ None. Implementation straightforward — extended `persistPlaidSyncPage` with tw
 
 - 2026-06-18: Story created (ready-for-dev). Scope is the Plaid transaction lifecycle — pending→posted (in-place + supersession linked by pending_transaction_id) and →removed (marked, not deleted) — applied inside the existing 4.2 per-page RLS transaction, idempotent and retry-safe, with a regression test confirming removed rows stay excluded from dashboard math (already filtered by Epic 3). Extends the 4.2 worker only; no schema, adapter, or money/sign change. Not implemented.
 - 2026-06-18: Implemented (review). Extended `persistPlaidSyncPage` with two `updateMany` calls inside the existing `withUserContext` transaction: supersession (prior pending row → removed when posted txn arrives with pendingTransactionId) and explicit removals (removedProviderTransactionIds → removed). Added 5 DB-backed worker tests covering all ACs. Typecheck clean; 68 tests pass.
+- 2026-06-19: Code review fixes applied (done). Four findings resolved: (1) supersession filter now guards `!t.pending` so still-pending modified txns with a non-null pendingTransactionId do not prematurely remove their predecessor; (2) supersession updateMany now guards `status: pending` on the target row so a same-page in-place post is never overwritten to removed; (3) categorize worker findMany now filters `status: { not: removed }` so removed uncategorized transactions are not sent to the LLM; (4) replaced `as string` cast with a type-predicate filter for safe TypeScript narrowing. Added 3 new DB-backed tests covering the two new guards and the categorize-worker removal filter. Typecheck clean; 68 pass, 96 skipped.
