@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-06-15
-last_updated: 2026-06-19 (epic 5 complete)
+last_updated: 2026-06-19 (epic 6 complete)
 project: Clarifi
 project_key: NOKEY
 tracking_system: file-system
@@ -87,10 +87,10 @@ development_status:
   epic-5-retrospective: optional
 
   # Epic 6: Natural Language Query
-  epic-6: backlog
-  6-1-nl-to-ir-generation: backlog
-  6-2-ir-to-parameterized-sql-with-safety: backlog
-  6-3-query-chat-ui-with-answer-chart-and-interpretation: backlog
+  epic-6: done
+  6-1-nl-to-ir-generation: done
+  6-2-ir-to-parameterized-sql-with-safety: done
+  6-3-query-chat-ui-with-answer-chart-and-interpretation: done
   epic-6-retrospective: optional
 
   # Epic 7: FDX & Open Banking
