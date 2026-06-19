@@ -62,6 +62,13 @@ const EnvSchema = z.object({
   // refresh tokens are opaque random values stored SHA-256-hashed, not JWTs.
   ACCESS_TOKEN_TTL: z.string().regex(/^[1-9]\d*[smhd]$/, 'must be e.g. "15m", "2h", "7d"').default("15m"),
   REFRESH_TOKEN_TTL: z.string().regex(/^[1-9]\d*[smhd]$/, 'must be e.g. "15m", "2h", "7d"').default("7d"),
+  // OpenTelemetry — optional; tracing is enabled only when OTLP endpoint is set.
+  OTEL_SERVICE_NAME: z.string().min(1).optional(),
+  OTEL_EXPORTER_OTLP_ENDPOINT: z
+    .string()
+    .url()
+    .optional()
+    .transform((v) => (v && v.length > 0 ? v : undefined)),
 });
 
 export const config = EnvSchema.parse(process.env);

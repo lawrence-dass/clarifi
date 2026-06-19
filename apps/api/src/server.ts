@@ -1,3 +1,5 @@
+// Tracing must be initialized before any other imports so OTEL can patch them.
+import "./lib/tracing.js";
 import { createApp } from "./app.js";
 import { config } from "./config.js";
 

@@ -101,9 +101,9 @@ development_status:
   epic-7-retrospective: optional
 
   # Epic 8: Notifications, Observability & Polish
-  epic-8: backlog
-  8-1-in-app-anomaly-notifications: backlog
-  8-2-budget-alerts-at-80-and-100: backlog
-  8-3-weekly-email-digest: backlog
-  8-4-observability-ci: backlog
+  epic-8: done
+  8-1-in-app-anomaly-notifications: done
+  8-2-budget-alerts-at-80-and-100: done
+  8-3-weekly-email-digest: done
+  8-4-observability-ci: done
   epic-8-retrospective: optional
