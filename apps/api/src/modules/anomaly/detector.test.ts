@@ -133,8 +133,11 @@ describe.skipIf(!hasDb)("detectAnomalies — velocity", () => {
     const now = new Date();
     const merchant = "Fraud Merchant A";
 
-    // Seed VELOCITY_COUNT_THRESHOLD - 1 transactions (2 if threshold is 3)
-    for (let i = 0; i < VELOCITY_COUNT_THRESHOLD - 1; i++) {
+    // The velocity count includes the current transaction (see the "exactly
+    // VELOCITY_COUNT_THRESHOLD" test). To stay below threshold the window must
+    // hold THRESHOLD-1 charges total, so seed THRESHOLD-2 priors (1 when
+    // threshold is 3); priors + current = 2 < 3.
+    for (let i = 1; i <= VELOCITY_COUNT_THRESHOLD - 2; i++) {
       await createTransaction(user.id, account.id, {
         amountCents: -1000n,
         merchantName: merchant,

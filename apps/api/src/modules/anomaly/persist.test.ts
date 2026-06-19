@@ -14,6 +14,13 @@ import {
 import { detectAndPersist } from "./persist.js";
 import type { DetectionInput } from "./detector.js";
 
+// Mock the explain queue so detectAndPersist never reaches Redis. With a dead
+// REDIS_URL host the enqueue hangs on DNS retries (not a thrown error the
+// try/catch can swallow), which previously timed these DB tests out at 40s.
+vi.mock("../../queues/anomaly-explain.queue.js", () => ({
+  enqueueAnomalyExplain: vi.fn(async () => undefined),
+}));
+
 const dbUrl = process.env.DATABASE_URL ?? "";
 const hasDb = dbUrl.length > 0 && !dbUrl.includes("placeholder");
 const userIds: string[] = [];
