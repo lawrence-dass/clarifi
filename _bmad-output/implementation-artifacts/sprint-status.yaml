@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-06-15
-last_updated: 2026-06-19 (story 4.3 done; epic-4 in-progress)
+last_updated: 2026-06-19 (epic-4 done; verified locally — typecheck + 44 tests)
 project: Clarifi
 project_key: NOKEY
 tracking_system: file-system
@@ -71,7 +71,7 @@ development_status:
   epic-3-retrospective: optional
 
   # Epic 4: Plaid & Reliable Ingestion
-  epic-4: in-progress
+  epic-4: done
   4-1-plaid-link-connection-token-encryption: done
   4-2-webhook-ingestion-with-outbox-cursor-sync: done
   4-3-transaction-lifecycle-pending-to-posted-to-removed: done

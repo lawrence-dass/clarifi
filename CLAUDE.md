@@ -120,6 +120,26 @@ individual stories economized.
 `/session-start` in a fresh window so lean context never costs accuracy
 (`_bmad/handoff/`, `_bmad-output/CURRENT.md`, `_bmad-output/project-context.md`).
 
+## Mobile sessions ("from mobile")
+
+When I say **"from mobile"** (or work originates from a mobile/cloud Claude session),
+follow `_bmad/handoff/mobile-workflow.md` end to end. A mobile session has no second agent,
+so it runs the **entire BMAD cycle solo** — create story → implement → self-review against
+the three review lenses (Blind Hunter / Edge Case Hunter / Acceptance Auditor) → fix →
+verify (typecheck + DB-backed tests + the guardrail tripwire) — to the **same standard as
+the desktop Claude+Codex split**, so review churn stays near-zero. Front-load the rigor
+(Pre-Review Due Diligence + AC→test traceability in the story file); that is what keeps
+churn low, not the review itself.
+
+Mobile self-verifies (it has `DATABASE_URL`/Redis), then decides on a **"no red flags" gate**:
+if verification is fully clean and no red flag is present, it fast-forwards its branch into
+`main`, flips status to `done`, and pushes; **any** red flag (failing/skipped tests, an
+unsure guardrail concern, a schema/migration, an unscoped guardrail diff, no clean
+fast-forward, a new dependency, scope creep, or a guessed requirement — see the file) means
+it pushes the **branch** only, leaves status at `review`, and hands to desktop. All
+guardrails in this document (the 19 decisions, risk tiers, the guardrail tripwire, and
+human-authored commits with no AI attribution) apply unchanged.
+
 ## Commands
 
 Run `nvm use` first (Node 22). Then:

@@ -53,3 +53,21 @@ code itself.
   `null`) and strips the holder name, so names never reach `merchantName` or the cache
   key. Don't reintroduce a path that derives a merchant from `PAYMENT/TRANSFER … TO/FROM
   <name>` or Interac/e-transfer strings (AC #6 / PIPEDA).
+
+## Learnings from Epic 3 UI + Epic 4 (Plaid) — 2026-06-18
+
+- **`@clarifi/shared` root barrel pulls Prisma into the bundle.** `src/index.ts` re-exports
+  `prisma.ts` + generated Prisma client, so importing from `@clarifi/shared` in **client/browser**
+  code drags Prisma in. Web code must import client-safe values from dedicated subpaths
+  (e.g. `@clarifi/shared/money-display` for `formatCents`). Epic-3 UI worked around the
+  `Category` enum by defining a local client-safe list. **Open cleanup:** add a
+  `@clarifi/shared/enums` subpath (mirroring `/money-display`) so web stories (Epic 6 query UI,
+  Epic 7 consent UI) stop duplicating enum values.
+- **Webhook → worker tenancy:** an unauthenticated webhook resolves its owner via a **base
+  Prisma client** lookup of the RLS-protected row by a unique key (`PlaidItem.itemId`), mirroring
+  the RefreshToken `token_hash` pre-auth pattern, then does user-data writes under
+  `withUserContext(userId)`. Reuse this for any future provider/webhook ingestion.
+- **Plaid sign is inverted** (positive = outflow); normalized once in `lib/plaid-adapter.ts`
+  (`-dollarsToCents`). Never re-reason about Plaid's sign downstream.
+- **`ENCRYPTION_KEY` is required at boot** (32 bytes, AES-256-GCM in `lib/crypto.ts`). The API
+  won't start without it — set it in every env (CI/Render) alongside Plaid/Anthropic keys.
