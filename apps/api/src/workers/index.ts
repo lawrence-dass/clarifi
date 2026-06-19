@@ -2,6 +2,7 @@ import type { Worker } from "bullmq";
 import { startCategorizeOutboxDrainer } from "../queues/categorize.outbox.js";
 import { startPlaidSyncOutboxDrainer } from "../queues/plaid-sync.outbox.js";
 import { createCategorizeWorker } from "./categorize.worker.js";
+import { createDigestWorker } from "./digest.worker.js";
 import { createPlaidSyncWorker } from "./plaid-sync.worker.js";
 
 export interface StartedWorkers {
@@ -9,7 +10,7 @@ export interface StartedWorkers {
 }
 
 export function startWorkers(): StartedWorkers {
-  const workers: Worker[] = [createCategorizeWorker(), createPlaidSyncWorker()];
+  const workers: Worker[] = [createCategorizeWorker(), createPlaidSyncWorker(), createDigestWorker()];
   for (const worker of workers) {
     worker.on("error", (err) => {
       // eslint-disable-next-line no-console
