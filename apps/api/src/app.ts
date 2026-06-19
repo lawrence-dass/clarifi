@@ -11,6 +11,7 @@ import { transactionsRouter } from "./modules/ingestion/ingestion.routes.js";
 import { transactionsAnalyticsRouter } from "./modules/transactions/transactions.routes.js";
 import { anomaliesRouter } from "./modules/anomaly/anomaly.routes.js";
 import { queryRouter } from "./modules/nl-query/query.routes.js";
+import { fdxRouter } from "./modules/fdx/fdx.routes.js";
 import { webhooksRouter } from "./modules/webhooks/webhooks.routes.js";
 import { errorMiddleware } from "./middleware/error.js";
 
@@ -62,6 +63,7 @@ export function createApp(): Express {
   app.use("/transactions", transactionsAnalyticsRouter);
   app.use("/anomalies", anomaliesRouter);
   app.use("/query", queryRouter);
+  app.use("/fdx", fdxRouter);
   app.use("/webhooks", webhooksRouter);
 
   // Central error handler — must be registered last, after all routes.
