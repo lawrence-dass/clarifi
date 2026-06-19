@@ -45,6 +45,7 @@ const EnvSchema = z.object({
   // Separate knob for judge model choice, defaulting to the categorization model
   // family used elsewhere for low-cost classification.
   CATEGORIZE_JUDGE_MODEL: z.string().min(1).default("claude-haiku-4-5"),
+  ANOMALY_EXPLAIN_MODEL: z.string().min(1).default("claude-haiku-4-5"),
   PLAID_CLIENT_ID: z
     .string()
     .optional()

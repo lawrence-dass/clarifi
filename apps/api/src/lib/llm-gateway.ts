@@ -1,7 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import * as z from "zod/v4";
-import { Category } from "@clarifi/shared";
+import { AnomalyType, Category } from "@clarifi/shared";
 import { config } from "../config.js";
 import { anonymizeDescription } from "./anonymize.js";
 import {
@@ -177,6 +177,71 @@ function mapAndValidateJudgeVerdicts(
 
 function toAlias(index: number): string {
   return `${RESULT_ALIAS_PREFIX}${index + 1}`;
+}
+
+export interface AnomalyExplainInput {
+  type: AnomalyType;
+  // dollar amounts (not cents) — no PII, only public merchant names
+  amountDollars: number;
+  merchantName: string | null;
+  category: string | null;
+  // context specific to the anomaly type
+  velocityCount?: number;
+  velocityWindowMinutes?: number;
+  priorTransactionCount?: number;
+  typicalAmountDollars?: number;
+}
+
+const ExplanationSchema = z.object({ explanation: z.string() });
+
+export async function generateAnomalyExplanation(
+  input: AnomalyExplainInput,
+  client: AnthropicLike = createAnthropicClient(),
+): Promise<string> {
+  const contextLines: string[] = [];
+
+  if (input.type === AnomalyType.velocity && input.velocityCount && input.velocityWindowMinutes) {
+    contextLines.push(
+      `There were ${input.velocityCount} charges at this merchant within ${input.velocityWindowMinutes} minutes.`,
+    );
+  } else if (input.type === AnomalyType.merchant) {
+    contextLines.push(
+      `This is your first transaction at this merchant (or one of your first ${input.priorTransactionCount ?? 0} transactions).`,
+    );
+    if (input.typicalAmountDollars !== undefined) {
+      contextLines.push(
+        `Your typical transaction size is $${input.typicalAmountDollars.toFixed(2)}.`,
+      );
+    }
+  } else if (input.type === AnomalyType.amount && input.priorTransactionCount && input.typicalAmountDollars !== undefined) {
+    contextLines.push(
+      `You have made ${input.priorTransactionCount} transactions at this merchant with a typical amount of $${input.typicalAmountDollars.toFixed(2)}.`,
+    );
+  }
+
+  const prompt = [
+    `Anomaly type: ${input.type}`,
+    `Merchant: ${input.merchantName ?? "Unknown"}`,
+    `Amount: $${input.amountDollars.toFixed(2)} CAD`,
+    input.category ? `Category: ${input.category}` : null,
+    ...contextLines,
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  const systemPrompt =
+    "You are a personal finance assistant. Write a single concise sentence (max 25 words) explaining why a transaction was flagged as unusual. Be specific, helpful, and non-alarmist. Respond only with the explanation text.";
+
+  const response = await client.messages.parse({
+    model: config.ANOMALY_EXPLAIN_MODEL,
+    max_tokens: 150,
+    system: systemPrompt,
+    messages: [{ role: "user", content: prompt }],
+    output_config: { format: zodOutputFormat(ExplanationSchema) },
+  });
+
+  const parsed = ExplanationSchema.parse(response.parsed_output);
+  return parsed.explanation.trim();
 }
 
 function createAnthropicClient(): AnthropicLike {
