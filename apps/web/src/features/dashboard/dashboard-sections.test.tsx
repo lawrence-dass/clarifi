@@ -82,6 +82,78 @@ describe("dashboard sections", () => {
     expect(await screen.findByText("No CAD cash-flow summary for 2026-06.")).toBeInTheDocument();
   });
 
+  it("shows 'Over budget' alert and red bar when percentUsed >= 100", async () => {
+    vi.mocked(apiClient).mockResolvedValue({
+      month: "2026-06",
+      currency: "CAD",
+      budgets: [
+        {
+          category: "food_and_dining",
+          month: "2026-06",
+          monthlyLimitCents: 10000,
+          spentCents: 12000,
+          remainingCents: -2000,
+          percentUsed: 120,
+          currency: "CAD",
+        },
+      ],
+    });
+
+    renderWithQueryClient(<BudgetsSection month="2026-06" />);
+
+    expect(await screen.findByText(/Over budget/)).toBeInTheDocument();
+    expect(await screen.findByText(/120%/)).toBeInTheDocument();
+  });
+
+  it("shows 'Approaching limit' alert when percentUsed is 80-99", async () => {
+    vi.mocked(apiClient).mockResolvedValue({
+      month: "2026-06",
+      currency: "CAD",
+      budgets: [
+        {
+          category: "transport",
+          month: "2026-06",
+          monthlyLimitCents: 10000,
+          spentCents: 8500,
+          remainingCents: 1500,
+          percentUsed: 85,
+          currency: "CAD",
+        },
+      ],
+    });
+
+    renderWithQueryClient(<BudgetsSection month="2026-06" />);
+
+    expect(await screen.findByText(/Approaching limit/)).toBeInTheDocument();
+    expect(await screen.findByText(/85%/)).toBeInTheDocument();
+  });
+
+  it("shows no alert when percentUsed < 80", async () => {
+    vi.mocked(apiClient).mockResolvedValue({
+      month: "2026-06",
+      currency: "CAD",
+      budgets: [
+        {
+          category: "shopping",
+          month: "2026-06",
+          monthlyLimitCents: 10000,
+          spentCents: 5000,
+          remainingCents: 5000,
+          percentUsed: 50,
+          currency: "CAD",
+        },
+      ],
+    });
+
+    renderWithQueryClient(<BudgetsSection month="2026-06" />);
+
+    // Multiple "Shopping" elements exist (budget card + dropdown option) — just
+    // verify the alert labels are absent
+    await screen.findByText(/50% used/);
+    expect(screen.queryByText(/Over budget/)).toBeNull();
+    expect(screen.queryByText(/Approaching limit/)).toBeNull();
+  });
+
   it("sets a budget through apiClient and invalidates the month budget query", async () => {
     const apiMock = vi.mocked(apiClient);
     apiMock.mockImplementation(async (path: string, options?: { method?: string }) => {

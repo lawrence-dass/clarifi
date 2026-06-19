@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatMoney } from "@/lib/format-money";
 import { barWidth, hasBudgets } from "./dashboard-utils";
+import type { BudgetProgress } from "./types";
 import { useBudgets, usePutBudget } from "./hooks";
 import { SectionFrame } from "./section-frame";
 import { CATEGORY_OPTIONS, CategorySchema, categoryLabel } from "./types";
@@ -52,25 +53,57 @@ export function BudgetsSection({ month }: { month: string }) {
     >
       <div className="space-y-4">
         {query.data?.budgets.map((budget) => (
-          <div key={`${budget.category}-${budget.month}`} className="rounded-md border border-slate-200 p-4">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <p className="font-medium text-slate-950">{categoryLabel(budget.category)}</p>
-                <p className="text-sm text-slate-500">{budget.percentUsed}% used</p>
-              </div>
-              <div className="text-right text-sm text-slate-600">
-                <p>{formatMoney(budget.spentCents, budget.currency)} spent</p>
-                <p>{formatMoney(budget.remainingCents, budget.currency)} remaining</p>
-              </div>
-            </div>
-            <div className="mt-3 h-2 rounded-full bg-slate-100" aria-label={`${categoryLabel(budget.category)} budget progress`}>
-              <div className="h-2 rounded-full bg-teal-700" style={{ width: barWidth(budget.percentUsed) }} />
-            </div>
-            <p className="mt-2 text-xs text-slate-500">Limit {formatMoney(budget.monthlyLimitCents, budget.currency)}</p>
-          </div>
+          <BudgetCard key={`${budget.category}-${budget.month}`} budget={budget} />
         ))}
       </div>
     </SectionFrame>
+  );
+}
+
+function budgetBarColor(pct: number): string {
+  if (pct >= 100) return "bg-red-600";
+  if (pct >= 80) return "bg-amber-500";
+  return "bg-teal-700";
+}
+
+function budgetAlertMessage(pct: number): string | null {
+  if (pct >= 100) return "Over budget";
+  if (pct >= 80) return "Approaching limit";
+  return null;
+}
+
+function BudgetCard({ budget }: { budget: BudgetProgress }) {
+  const alert = budgetAlertMessage(budget.percentUsed);
+  const barColor = budgetBarColor(budget.percentUsed);
+
+  return (
+    <div
+      className={`rounded-md border p-4 ${
+        budget.percentUsed >= 100
+          ? "border-red-200 bg-red-50"
+          : budget.percentUsed >= 80
+            ? "border-amber-200 bg-amber-50"
+            : "border-slate-200"
+      }`}
+    >
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p className="font-medium text-slate-950">{categoryLabel(budget.category)}</p>
+          <p className={`text-sm ${budget.percentUsed >= 100 ? "text-red-700" : budget.percentUsed >= 80 ? "text-amber-700" : "text-slate-500"}`}>
+            {budget.percentUsed}% used
+            {alert ? ` · ${alert}` : ""}
+          </p>
+        </div>
+        <div className="text-right text-sm text-slate-600">
+          <p>{formatMoney(budget.spentCents, budget.currency)} spent</p>
+          <p>{formatMoney(budget.remainingCents, budget.currency)} remaining</p>
+        </div>
+      </div>
+      <div className="mt-3 h-2 rounded-full bg-slate-100" aria-label={`${categoryLabel(budget.category)} budget progress`}>
+        <div className={`h-2 rounded-full ${barColor}`} style={{ width: barWidth(budget.percentUsed) }} />
+      </div>
+      <p className="mt-2 text-xs text-slate-500">Limit {formatMoney(budget.monthlyLimitCents, budget.currency)}</p>
+    </div>
   );
 }
 
