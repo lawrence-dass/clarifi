@@ -42,14 +42,14 @@ describe("lastWeekRange", () => {
     expect(end.toISOString().slice(0, 10)).toBe("2026-06-28");
   });
 
-  it("start is midnight and end is 23:59:59.999 local (UTC 0)", () => {
+  it("start is UTC midnight and end is 23:59:59.999 UTC", () => {
     const today = new Date("2026-06-17T00:00:00Z");
     const { start, end } = lastWeekRange(today);
-    expect(start.getHours()).toBe(0);
-    expect(start.getMinutes()).toBe(0);
-    expect(end.getHours()).toBe(23);
-    expect(end.getMinutes()).toBe(59);
-    expect(end.getSeconds()).toBe(59);
+    expect(start.getUTCHours()).toBe(0);
+    expect(start.getUTCMinutes()).toBe(0);
+    expect(end.getUTCHours()).toBe(23);
+    expect(end.getUTCMinutes()).toBe(59);
+    expect(end.getUTCSeconds()).toBe(59);
   });
 
   it("week span is exactly 6 days apart (Monday to Sunday)", () => {

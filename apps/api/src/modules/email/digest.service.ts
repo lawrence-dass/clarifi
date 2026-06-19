@@ -14,17 +14,19 @@ export interface DigestData {
 
 /** Last Monday → last Sunday (ISO week, inclusive). */
 export function lastWeekRange(today: Date): { start: Date; end: Date } {
+  // Compute in UTC so the digest window is deterministic regardless of server
+  // timezone (a local-time computation shifts the week boundary off-UTC).
   const d = new Date(today);
   // Sunday = 0, Monday = 1 … Saturday = 6
-  const dayOfWeek = d.getDay(); // 0=Sun
+  const dayOfWeek = d.getUTCDay(); // 0=Sun
   // Days since last Monday: if today is Mon=1 → 7, Sun=0 → 6, Sat=6 → 1
   const daysSinceLastMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1 + 7;
   const lastMonday = new Date(d);
-  lastMonday.setDate(d.getDate() - daysSinceLastMonday);
-  lastMonday.setHours(0, 0, 0, 0);
+  lastMonday.setUTCDate(d.getUTCDate() - daysSinceLastMonday);
+  lastMonday.setUTCHours(0, 0, 0, 0);
   const lastSunday = new Date(lastMonday);
-  lastSunday.setDate(lastMonday.getDate() + 6);
-  lastSunday.setHours(23, 59, 59, 999);
+  lastSunday.setUTCDate(lastMonday.getUTCDate() + 6);
+  lastSunday.setUTCHours(23, 59, 59, 999);
   return { start: lastMonday, end: lastSunday };
 }
 

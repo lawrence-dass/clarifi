@@ -57,10 +57,37 @@ export interface JudgeVerdict {
   confidence: number;
 }
 
-interface AnthropicLike {
+export interface AnthropicLike {
   messages: {
     parse(params: unknown): Promise<{ parsed_output: unknown }>;
   };
+}
+
+/**
+ * Generic structured-output call. Centralizes the Anthropic SDK + zodOutputFormat
+ * here so feature modules (e.g. NL→IR generation) never import the SDK directly —
+ * this gateway is the single LLM egress point (guardrail). Callers pass a zod v4
+ * schema; the raw parsed output is returned for the caller to validate against the
+ * authoritative shared schema.
+ */
+export async function parseStructured(
+  params: {
+    model: string;
+    maxTokens: number;
+    system: string;
+    user: string;
+    schema: Parameters<typeof zodOutputFormat>[0];
+  },
+  client: AnthropicLike = createAnthropicClient(),
+): Promise<unknown> {
+  const response = await client.messages.parse({
+    model: params.model,
+    max_tokens: params.maxTokens,
+    system: params.system,
+    messages: [{ role: "user", content: params.user }],
+    output_config: { format: zodOutputFormat(params.schema) },
+  });
+  return response.parsed_output;
 }
 
 export async function categorizeBatch(

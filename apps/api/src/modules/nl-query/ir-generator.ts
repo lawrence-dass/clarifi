@@ -1,8 +1,7 @@
-import Anthropic from "@anthropic-ai/sdk";
-import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import * as z from "zod/v4";
 import { QueryIRSchema, type QueryIR } from "@clarifi/shared";
 import { config } from "../../config.js";
+import { parseStructured, type AnthropicLike } from "../../lib/llm-gateway.js";
 
 // Local Zod v4 mirror of QueryIRSchema — zodOutputFormat requires v4 schemas.
 // The result is then re-parsed by the authoritative QueryIRSchema (v3 in shared).
@@ -74,37 +73,23 @@ shown to the user verbatim for transparency.
 - Default limit is 10 for dimension queries (the user wants a ranked list), 1 for scalar.
 - Never exceed limit 1000.`;
 
-interface AnthropicLike {
-  messages: {
-    parse(params: unknown): Promise<{ parsed_output: unknown }>;
-  };
-}
-
-function createAnthropicClient(): AnthropicLike {
-  if (!config.ANTHROPIC_API_KEY) throw new Error("ANTHROPIC_API_KEY is required for NL query");
-  return new Anthropic({ apiKey: config.ANTHROPIC_API_KEY });
-}
-
 export async function generateQueryIR(
   question: string,
   today: string, // YYYY-MM-DD
   client?: AnthropicLike,
 ): Promise<QueryIR> {
-  const anthropic = client ?? createAnthropicClient();
-
-  const response = await anthropic.messages.parse({
-    model: config.CATEGORIZATION_MODEL,
-    max_tokens: 512,
-    system: NL_QUERY_SYSTEM_PROMPT,
-    messages: [
-      {
-        role: "user",
-        content: `Today is ${today}.\n\nUser question: ${question}`,
-      },
-    ],
-    output_config: { format: zodOutputFormat(QueryIRSchemaV4) },
-  });
+  // Route through the gateway (single LLM egress point) rather than the SDK directly.
+  const parsed = await parseStructured(
+    {
+      model: config.CATEGORIZATION_MODEL,
+      maxTokens: 512,
+      system: NL_QUERY_SYSTEM_PROMPT,
+      user: `Today is ${today}.\n\nUser question: ${question}`,
+      schema: QueryIRSchemaV4,
+    },
+    client,
+  );
 
   // Authoritative parse against the shared schema (source of truth for the type)
-  return QueryIRSchema.parse(response.parsed_output);
+  return QueryIRSchema.parse(parsed);
 }

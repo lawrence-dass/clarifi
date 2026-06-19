@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import request from "supertest";
 import { prisma } from "@clarifi/shared";
 import { createApp } from "../../app.js";
+import { runNLQuery } from "./query.service.js";
 
 // Mock the NL query service so tests never need a live LLM or DB for happy paths
 vi.mock("./query.service.js", () => ({
@@ -55,11 +56,9 @@ describe("POST /query/nl — auth and validation (always run)", () => {
 describe.skipIf(!hasDb)("POST /query/nl — authenticated requests", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    // Reset mock to default happy-path response
-    const { runNLQuery } = require("./query.service.js") as {
-      runNLQuery: ReturnType<typeof vi.fn>;
-    };
-    runNLQuery.mockResolvedValue({
+    // Reset mock to default happy-path response (vi.mock hoists, so the imported
+    // binding is the mock — use vi.mocked rather than require() in this ESM module)
+    vi.mocked(runNLQuery).mockResolvedValue({
       interpretation: "Total spending in June 2026.",
       rows: [{ value: -150000 }],
       metric: "total_spend",

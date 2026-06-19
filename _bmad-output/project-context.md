@@ -71,3 +71,25 @@ code itself.
   (`-dollarsToCents`). Never re-reason about Plaid's sign downstream.
 - **`ENCRYPTION_KEY` is required at boot** (32 bytes, AES-256-GCM in `lib/crypto.ts`). The API
   won't start without it — set it in every env (CI/Render) alongside Plaid/Anthropic keys.
+
+## Learnings from Epics 5–8 verification (cloud-built) — 2026-06-19
+
+- **Single LLM egress point is enforced via the gateway.** `lib/llm-gateway.ts` now exposes a
+  generic `parseStructured({ model, maxTokens, system, user, schema }, client?)` that wraps the
+  Anthropic SDK + `zodOutputFormat`. Feature modules (e.g. NL→IR in `modules/nl-query/ir-generator.ts`)
+  call it and re-parse the result against the authoritative shared schema — **never** import
+  `@anthropic-ai/sdk` outside the gateway. (The cloud build had bypassed this with its own client.)
+- **Cloud/remote runs must have a live `DATABASE_URL`.** DB-backed suites gate on
+  `hasDb = DATABASE_URL set && !includes("placeholder")` and `describe.skipIf(!hasDb)`. The cloud
+  build marked stories done with these **skipped**, hiding a broken NL-query route test (used CJS
+  `require()` in an ESM file — use `vi.mocked(import)` instead) — exactly the "DB tests skipped"
+  red flag in `_bmad/handoff/mobile-workflow.md`.
+- **Date math must be UTC.** `digest.service.lastWeekRange` used local `getDay/setHours` but tests
+  assert via `toISOString()` (UTC) → off-by-one week boundary on any non-UTC server. Fixed to
+  `getUTCDay/setUTCDate/setUTCHours`. Compute all scheduled-window boundaries in UTC.
+- **OPEN guardrail follow-ups (NL→SQL, Epic 6 / story 6-2) — not yet done:**
+  (1) `nl-query/executor.ts` runs generated SQL via `withUserContext` on the **app role**; the
+  guardrail calls for a dedicated **read-only DB role**. (2) `nl-query/validator.ts` is a regex
+  **keyword-blocklist**, but the guardrail specifies an **AST allowlist** (allowlist, not blocklist).
+  Both are defense-in-depth behind the IR compiler + parameterized params + 2s `statement_timeout` +
+  mandatory LIMIT + RLS, but should be hardened to meet the letter of the guardrail before 6-2 → done.
