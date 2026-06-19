@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-06-15
-last_updated: 2026-06-19 (story 5.2 in review)
+last_updated: 2026-06-19 (epic 5 complete)
 project: Clarifi
 project_key: NOKEY
 tracking_system: file-system
@@ -78,12 +78,12 @@ development_status:
   epic-4-retrospective: optional
 
   # Epic 5: Anomaly Detection
-  epic-5: in-progress
+  epic-5: done
   5-1-robust-stats-engine-baselines: done
-  5-2-velocity-merchant-anomaly-detection: review
-  5-3-synchronous-detection-severity-scoring: backlog
-  5-4-async-plain-english-explanations: backlog
-  5-5-anomaly-feed-feedback-loop: backlog
+  5-2-velocity-merchant-anomaly-detection: done
+  5-3-synchronous-detection-severity-scoring: done
+  5-4-async-plain-english-explanations: done
+  5-5-anomaly-feed-feedback-loop: done
   epic-5-retrospective: optional
 
   # Epic 6: Natural Language Query

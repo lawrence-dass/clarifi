@@ -9,6 +9,7 @@ import { accountsRouter } from "./modules/accounts/accounts.routes.js";
 import { budgetsRouter } from "./modules/budgets/budgets.routes.js";
 import { transactionsRouter } from "./modules/ingestion/ingestion.routes.js";
 import { transactionsAnalyticsRouter } from "./modules/transactions/transactions.routes.js";
+import { anomaliesRouter } from "./modules/anomaly/anomaly.routes.js";
 import { webhooksRouter } from "./modules/webhooks/webhooks.routes.js";
 import { errorMiddleware } from "./middleware/error.js";
 
@@ -58,6 +59,7 @@ export function createApp(): Express {
   app.use("/budgets", budgetsRouter);
   app.use("/transactions", transactionsRouter);
   app.use("/transactions", transactionsAnalyticsRouter);
+  app.use("/anomalies", anomaliesRouter);
   app.use("/webhooks", webhooksRouter);
 
   // Central error handler — must be registered last, after all routes.
