@@ -35,6 +35,7 @@ export interface ListAnomaliesResult {
 export async function listAnomalies(params: {
   userId: string;
   includeDismissed?: boolean;
+  severity?: AnomalySeverity;
   limit?: number;
   cursor?: string; // createdAt ISO string — return rows before this timestamp
 }): Promise<ListAnomaliesResult> {
@@ -46,6 +47,7 @@ export async function listAnomalies(params: {
       where: {
         userId: params.userId,
         ...(includeDismissed ? {} : { dismissed: false }),
+        ...(params.severity ? { severity: params.severity } : {}),
         ...(params.cursor ? { createdAt: { lt: new Date(params.cursor) } } : {}),
       },
       orderBy: { createdAt: "desc" },

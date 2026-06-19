@@ -1,5 +1,6 @@
 import type { NextFunction, Request, Response } from "express";
 import { z } from "zod";
+import { AnomalySeverity } from "@clarifi/shared";
 import { badRequest, unauthorized } from "../../lib/app-error.js";
 import { listAnomalies, dismissAnomaly, reportAnomaly } from "./anomaly.service.js";
 
@@ -8,6 +9,7 @@ const ListAnomaliesQuery = z.object({
     .enum(["true", "false"])
     .optional()
     .transform((v) => v === "true"),
+  severity: z.nativeEnum(AnomalySeverity).optional(),
   limit: z.coerce.number().int().positive().max(100).optional(),
   cursor: z.string().datetime().optional(),
 });
@@ -28,6 +30,7 @@ export async function getAnomalies(
     const result = await listAnomalies({
       userId: req.userId,
       includeDismissed: parsed.data.includeDismissed,
+      severity: parsed.data.severity,
       limit: parsed.data.limit,
       cursor: parsed.data.cursor,
     });

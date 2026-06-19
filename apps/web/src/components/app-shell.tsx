@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useLogout, useSession } from "@/lib/auth";
+import { NotificationBell } from "@/features/notifications/notification-bell";
 import { Button } from "./ui/button";
 
 const navItems = [
@@ -43,6 +44,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 {item.label}
               </Link>
             ))}
+            <NotificationBell />
             <Button type="button" variant="outline" onClick={signOut} disabled={logout.isPending}>
               Sign out
             </Button>
