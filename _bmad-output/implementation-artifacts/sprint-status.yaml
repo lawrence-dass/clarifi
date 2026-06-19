@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-06-15
-last_updated: 2026-06-19 (epic 6 complete)
+last_updated: 2026-06-19 (epic 7 complete)
 project: Clarifi
 project_key: NOKEY
 tracking_system: file-system
@@ -94,10 +94,10 @@ development_status:
   epic-6-retrospective: optional
 
   # Epic 7: FDX & Open Banking
-  epic-7: backlog
-  7-1-fdx-mock-resources-adapter: backlog
-  7-2-oauth2-consent-flow: backlog
-  7-3-consent-dashboard: backlog
+  epic-7: done
+  7-1-fdx-mock-resources-adapter: done
+  7-2-oauth2-consent-flow: done
+  7-3-consent-dashboard: done
   epic-7-retrospective: optional
 
   # Epic 8: Notifications, Observability & Polish
