@@ -1,7 +1,9 @@
 "use client";
 
-import { ErrorState } from "@/components/error-state";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ErrorState } from "@/components/error-state";
+import { Loading } from "@/components/loading";
 import { useConsents, useRevokeConsent } from "./consent.hooks";
 import type { Consent } from "./consent.types";
 
@@ -27,30 +29,24 @@ function ConsentCard({ consent }: { consent: Consent }) {
   const isGranted = consent.status === "granted";
 
   return (
-    <div className="rounded-md border border-slate-200 bg-white p-5">
+    <div className="rounded border border-border bg-surface p-5 shadow-card">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="space-y-1">
+        <div className="space-y-2">
           <div className="flex items-center gap-2">
-            <span
-              className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
-                isGranted
-                  ? "bg-teal-50 text-teal-700"
-                  : "bg-slate-100 text-slate-500"
-              }`}
-            >
+            <Badge tone={isGranted ? "success" : "info"}>
               {isGranted ? "Active" : "Revoked"}
-            </span>
-            <span className="text-xs text-slate-400">FDX consent</span>
+            </Badge>
+            <span className="label-micro">FDX consent</span>
           </div>
-          <ul className="mt-2 space-y-1">
+          <ul className="space-y-1">
             {consent.scopes.map((scope) => (
-              <li key={scope} className="flex items-center gap-1.5 text-sm text-slate-700">
-                <span className="text-teal-600" aria-hidden>✓</span>
+              <li key={scope} className="flex items-center gap-1.5 text-sm text-text">
+                <span className="text-success" aria-hidden>✓</span>
                 {scopeLabel(scope)}
               </li>
             ))}
           </ul>
-          <p className="text-xs text-slate-400">
+          <p className="text-xs text-text-faint">
             Granted {formatDate(consent.grantedAt)}
             {consent.revokedAt ? ` · Revoked ${formatDate(consent.revokedAt)}` : ""}
           </p>
@@ -58,10 +54,10 @@ function ConsentCard({ consent }: { consent: Consent }) {
 
         {isGranted ? (
           <Button
-            variant="outline"
+            variant="danger"
+            size="sm"
             disabled={revoke.isPending}
             onClick={() => revoke.mutate(consent.id)}
-            className="text-red-600 hover:bg-red-50 hover:text-red-700"
           >
             {revoke.isPending ? "Revoking…" : "Revoke"}
           </Button>
@@ -80,27 +76,16 @@ function ConsentCard({ consent }: { consent: Consent }) {
 export function ConsentDashboard() {
   const { data, isPending, error } = useConsents();
 
-  if (isPending) {
-    return (
-      <div className="space-y-4">
-        {[1, 2].map((n) => (
-          <div key={n} className="h-28 animate-pulse rounded-md bg-slate-100" />
-        ))}
-      </div>
-    );
-  }
-
-  if (error) {
-    return <ErrorState error={error} />;
-  }
+  if (isPending) return <Loading label="Loading consents" />;
+  if (error) return <ErrorState error={error} />;
 
   const consents = data?.consents ?? [];
 
   if (consents.length === 0) {
     return (
-      <div className="rounded-md border border-dashed border-slate-300 bg-white p-8 text-center">
-        <p className="text-slate-600">No open banking consents yet.</p>
-        <p className="mt-1 text-sm text-slate-400">
+      <div className="rounded border border-dashed border-border px-6 py-12 text-center">
+        <p className="text-sm font-medium text-text">No open banking consents yet.</p>
+        <p className="mt-1 text-xs text-text-muted">
           Consents appear here after you connect an FDX data provider.
         </p>
       </div>
