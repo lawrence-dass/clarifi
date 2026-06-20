@@ -16,6 +16,7 @@
     "typecheck": "pnpm -r typecheck",
     "lint": "pnpm -r lint",
     "test": "pnpm -r test",
+    "verify:story": "bash scripts/verify-story.sh",
     "db:generate": "pnpm --filter @clarifi/shared db:generate",
     "db:migrate": "pnpm --filter @clarifi/shared db:migrate"
   },

@@ -131,14 +131,18 @@ the desktop Claude+Codex split**, so review churn stays near-zero. Front-load th
 (Pre-Review Due Diligence + AC→test traceability in the story file); that is what keeps
 churn low, not the review itself.
 
-Mobile self-verifies (it has `DATABASE_URL`/Redis), then decides on a **"no red flags" gate**:
-if verification is fully clean and no red flag is present, it fast-forwards its branch into
-`main`, flips status to `done`, and pushes; **any** red flag (failing/skipped tests, an
-unsure guardrail concern, a schema/migration, an unscoped guardrail diff, no clean
-fast-forward, a new dependency, scope creep, or a guessed requirement — see the file) means
-it pushes the **branch** only, leaves status at `review`, and hands to desktop. All
-guardrails in this document (the 19 decisions, risk tiers, the guardrail tripwire, and
-human-authored commits with no AI attribution) apply unchanged.
+Mobile works **one story at a time** and self-verifies with the mechanical gate
+**`pnpm verify:story`** (which bootstraps against a real local Postgres — see the file —
+and fails on skipped DB tests, SDK imported outside the gateway, unapplied migrations, or
+typecheck/test failures). It then decides on a **"no red flags" gate**: only if
+`verify:story` exits 0 and no red flag is present does it fast-forward its branch into
+`main`, flip status to `done`, and push; **any** red flag (a non-green `verify:story`,
+failing/skipped tests, touching more than one story, an unsure guardrail concern, a
+schema/migration, an unscoped guardrail diff, no clean fast-forward, a new dependency,
+scope creep, or a guessed requirement — see the file) means it pushes the **branch** only,
+leaves status at `review`, and hands to desktop. All guardrails in this document (the 19
+decisions, risk tiers, the guardrail tripwire, and human-authored commits with no AI
+attribution) apply unchanged.
 
 ## Commands
 
