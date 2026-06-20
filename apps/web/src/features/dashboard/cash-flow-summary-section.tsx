@@ -1,5 +1,6 @@
 "use client";
 
+import { KpiTile } from "@/components/ui/kpi-tile";
 import { formatMoney } from "@/lib/format-money";
 import { summaryBucket } from "./dashboard-utils";
 import { useCashFlowSummary } from "./hooks";
@@ -21,40 +22,57 @@ export function CashFlowSummarySection({ month, currency }: { month: string; cur
       {bucket ? (
         <div className="space-y-6">
           <div className="grid gap-3 sm:grid-cols-3">
-            <Metric label="Income" value={formatMoney(bucket.incomeCents, currency)} />
-            <Metric label="Expenses" value={formatMoney(bucket.expensesCents, currency)} />
-            <Metric label="Net" value={formatMoney(bucket.netCents, currency)} tone={bucket.netCents < 0 ? "red" : "green"} />
+            <KpiTile
+              label="Income"
+              value={formatMoney(bucket.incomeCents, currency)}
+              currency={currency}
+            />
+            <KpiTile
+              label="Expenses"
+              value={formatMoney(bucket.expensesCents, currency)}
+              currency={currency}
+            />
+            <KpiTile
+              label="Net"
+              value={formatMoney(bucket.netCents, currency)}
+              currency={currency}
+              delta={
+                bucket.netCents !== 0
+                  ? { direction: bucket.netCents > 0 ? "up" : "down", label: "" }
+                  : undefined
+              }
+            />
           </div>
 
           <div className="grid gap-6 lg:grid-cols-2">
             <div>
-              <h3 className="text-sm font-medium text-slate-950">Top merchants</h3>
+              <p className="label-micro mb-3">Top merchants</p>
               {bucket.topMerchants.length ? (
-                <ul className="mt-3 divide-y divide-slate-100 text-sm">
+                <ul className="divide-y divide-border text-sm">
                   {bucket.topMerchants.map((merchant) => (
-                    <li key={merchant.merchantName} className="flex items-center justify-between gap-3 py-2">
-                      <span className="text-slate-600">{merchant.merchantName}</span>
-                      <span className="font-medium text-slate-950">
+                    <li key={merchant.merchantName} className="flex items-center justify-between gap-3 py-2.5">
+                      <span className="text-text-muted">{merchant.merchantName}</span>
+                      <span className="font-medium text-text tabular-nums">
                         {formatMoney(merchant.totalCents, currency)} · {merchant.transactionCount}
                       </span>
                     </li>
                   ))}
                 </ul>
               ) : (
-                <p className="mt-3 text-sm text-slate-500">No merchants for this month.</p>
+                <p className="text-sm text-text-muted">No merchants for this month.</p>
               )}
             </div>
 
             <div>
-              <h3 className="text-sm font-medium text-slate-950">
+              <p className="label-micro mb-3">
                 Category deltas from {query.data?.previousMonth}
-              </h3>
+              </p>
               {bucket.categoryDeltas.length ? (
-                <ul className="mt-3 divide-y divide-slate-100 text-sm">
+                <ul className="divide-y divide-border text-sm">
                   {bucket.categoryDeltas.map((delta) => (
-                    <li key={delta.category} className="flex items-center justify-between gap-3 py-2">
-                      <span className="text-slate-600">{categoryLabel(delta.category)}</span>
-                      <span className={`font-medium ${deltaTone(delta.deltaCents)}`}>
+                    <li key={delta.category} className="flex items-center justify-between gap-3 py-2.5">
+                      <span className="text-text-muted">{categoryLabel(delta.category)}</span>
+                      <span className={`font-medium tabular-nums ${deltaTone(delta.deltaCents)}`}>
                         {deltaIcon(delta.deltaCents)}{" "}
                         {formatMoney(delta.deltaCents, currency)}
                       </span>
@@ -62,7 +80,7 @@ export function CashFlowSummarySection({ month, currency }: { month: string; cur
                   ))}
                 </ul>
               ) : (
-                <p className="mt-3 text-sm text-slate-500">No category deltas for this month.</p>
+                <p className="text-sm text-text-muted">No category deltas for this month.</p>
               )}
             </div>
           </div>
@@ -79,17 +97,7 @@ function deltaIcon(deltaCents: number): string {
 }
 
 function deltaTone(deltaCents: number): string {
-  if (deltaCents < 0) return "text-emerald-700";
-  if (deltaCents > 0) return "text-rose-700";
-  return "text-slate-600";
-}
-
-function Metric({ label, value, tone }: { label: string; value: string; tone?: "green" | "red" }) {
-  const toneClass = tone === "red" ? "text-rose-700" : tone === "green" ? "text-emerald-700" : "text-slate-950";
-  return (
-    <div className="rounded-md border border-slate-200 px-4 py-3">
-      <p className="text-xs uppercase tracking-wide text-slate-500">{label}</p>
-      <p className={`mt-1 text-xl font-semibold ${toneClass}`}>{value}</p>
-    </div>
-  );
+  if (deltaCents < 0) return "text-success";
+  if (deltaCents > 0) return "text-danger";
+  return "text-text-muted";
 }

@@ -6,8 +6,9 @@ import { z } from "zod";
 import { ErrorState } from "@/components/error-state";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Progress } from "@/components/ui/progress";
 import { formatMoney } from "@/lib/format-money";
-import { barWidth, hasBudgets } from "./dashboard-utils";
+import { hasBudgets } from "./dashboard-utils";
 import type { BudgetProgress } from "./types";
 import { useBudgets, usePutBudget } from "./hooks";
 import { SectionFrame } from "./section-frame";
@@ -60,10 +61,10 @@ export function BudgetsSection({ month }: { month: string }) {
   );
 }
 
-function budgetBarColor(pct: number): string {
-  if (pct >= 100) return "bg-red-600";
-  if (pct >= 80) return "bg-amber-500";
-  return "bg-teal-700";
+function budgetTone(pct: number): "success" | "warning" | "danger" {
+  if (pct >= 100) return "danger";
+  if (pct >= 80) return "warning";
+  return "success";
 }
 
 function budgetAlertMessage(pct: number): string | null {
@@ -73,36 +74,37 @@ function budgetAlertMessage(pct: number): string | null {
 }
 
 function BudgetCard({ budget }: { budget: BudgetProgress }) {
+  const tone = budgetTone(budget.percentUsed);
   const alert = budgetAlertMessage(budget.percentUsed);
-  const barColor = budgetBarColor(budget.percentUsed);
 
   return (
-    <div
-      className={`rounded-md border p-4 ${
-        budget.percentUsed >= 100
-          ? "border-red-200 bg-red-50"
-          : budget.percentUsed >= 80
-            ? "border-amber-200 bg-amber-50"
-            : "border-slate-200"
-      }`}
-    >
+    <div className="rounded border border-border bg-surface p-4 shadow-card">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <p className="font-medium text-slate-950">{categoryLabel(budget.category)}</p>
-          <p className={`text-sm ${budget.percentUsed >= 100 ? "text-red-700" : budget.percentUsed >= 80 ? "text-amber-700" : "text-slate-500"}`}>
-            {budget.percentUsed}% used
-            {alert ? ` · ${alert}` : ""}
-          </p>
+          <p className="font-medium text-text">{categoryLabel(budget.category)}</p>
+          {alert ? (
+            <p
+              className={`text-xs font-semibold ${tone === "danger" ? "text-danger" : "text-warning"}`}
+            >
+              {alert}
+            </p>
+          ) : null}
         </div>
-        <div className="text-right text-sm text-slate-600">
+        <div className="text-right text-sm text-text-muted tabular-nums">
           <p>{formatMoney(budget.spentCents, budget.currency)} spent</p>
           <p>{formatMoney(budget.remainingCents, budget.currency)} remaining</p>
         </div>
       </div>
-      <div className="mt-3 h-2 rounded-full bg-slate-100" aria-label={`${categoryLabel(budget.category)} budget progress`}>
-        <div className={`h-2 rounded-full ${barColor}`} style={{ width: barWidth(budget.percentUsed) }} />
-      </div>
-      <p className="mt-2 text-xs text-slate-500">Limit {formatMoney(budget.monthlyLimitCents, budget.currency)}</p>
+      <Progress
+        value={budget.percentUsed}
+        tone={tone}
+        showValue
+        className="mt-3"
+        aria-label={`${categoryLabel(budget.category)} budget progress`}
+      />
+      <p className="mt-1.5 text-xs text-text-faint">
+        Limit {formatMoney(budget.monthlyLimitCents, budget.currency)}
+      </p>
     </div>
   );
 }
@@ -119,11 +121,14 @@ function BudgetForm({
   onSubmit: (values: BudgetFormValues) => Promise<void>;
 }) {
   return (
-    <form className="mt-6 grid gap-3 rounded-md border border-slate-200 p-4 sm:grid-cols-[1fr_1fr_auto]" onSubmit={form.handleSubmit(onSubmit)}>
-      <label className="grid gap-1 text-sm text-slate-600">
-        Category
+    <form
+      className="mt-6 grid gap-3 rounded border border-border bg-canvas p-4 sm:grid-cols-[1fr_1fr_auto]"
+      onSubmit={form.handleSubmit(onSubmit)}
+    >
+      <label className="grid gap-1">
+        <span className="label-micro">Category</span>
         <select
-          className="h-10 rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-950"
+          className="h-10 rounded-sm border border-border bg-surface px-3 text-sm text-text focus:outline-none focus:ring-1 focus:ring-primary"
           {...form.register("category")}
         >
           {CATEGORY_OPTIONS.map((option) => (
@@ -133,8 +138,8 @@ function BudgetForm({
           ))}
         </select>
       </label>
-      <label className="grid gap-1 text-sm text-slate-600">
-        Monthly limit, cents
+      <label className="grid gap-1">
+        <span className="label-micro">Monthly limit, cents</span>
         <Input inputMode="numeric" type="number" min={1} step={1} {...form.register("monthlyLimitCents")} />
       </label>
       <div className="flex items-end">
@@ -143,7 +148,9 @@ function BudgetForm({
         </Button>
       </div>
       {form.formState.errors.monthlyLimitCents ? (
-        <p className="text-sm text-red-700 sm:col-span-3">{form.formState.errors.monthlyLimitCents.message}</p>
+        <p className="text-sm text-danger sm:col-span-3">
+          {form.formState.errors.monthlyLimitCents.message}
+        </p>
       ) : null}
       {error ? (
         <div className="sm:col-span-3">

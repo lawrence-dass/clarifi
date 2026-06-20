@@ -149,7 +149,7 @@ describe("dashboard sections", () => {
 
     // Multiple "Shopping" elements exist (budget card + dropdown option) — just
     // verify the alert labels are absent
-    await screen.findByText(/50% used/);
+    await screen.findByText(/50%/);
     expect(screen.queryByText(/Over budget/)).toBeNull();
     expect(screen.queryByText(/Approaching limit/)).toBeNull();
   });

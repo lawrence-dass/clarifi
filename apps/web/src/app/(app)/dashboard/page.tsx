@@ -35,28 +35,28 @@ export default function DashboardPage() {
     <div className="grid gap-6">
       <section className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-slate-950">Spending dashboard</h1>
-          <p className="mt-1 text-sm text-slate-600">
+          <h1 className="text-2xl font-semibold text-text">Spending dashboard</h1>
+          <p className="mt-1 text-sm text-text-muted">
             Category breakdown, six-month trend, cash flow, and CAD budget progress.
           </p>
         </div>
         <div className="flex flex-wrap gap-3">
-          <label className="grid gap-1 text-sm text-slate-600">
-            Month
+          <label className="grid gap-1">
+            <span className="label-micro">Month</span>
             <input
               type="month"
               value={month}
               onChange={(event) => setMonth(event.target.value)}
-              className="h-10 rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-950"
+              className="h-10 rounded-sm border border-border bg-surface px-3 text-sm text-text focus:outline-none focus:ring-1 focus:ring-primary"
             />
           </label>
           {currencies.length > 1 ? (
-            <label className="grid gap-1 text-sm text-slate-600">
-              Currency
+            <label className="grid gap-1">
+              <span className="label-micro">Currency</span>
               <select
                 value={selectedCurrency}
                 onChange={(event) => setCurrency(event.target.value)}
-                className="h-10 rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-950"
+                className="h-10 rounded-sm border border-border bg-surface px-3 text-sm text-text focus:outline-none focus:ring-1 focus:ring-primary"
               >
                 {currencies.map((option) => (
                   <option key={option} value={option}>
