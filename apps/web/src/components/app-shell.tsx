@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useLogout, useSession } from "@/lib/auth";
 import { NotificationBell } from "@/features/notifications/notification-bell";
 import { Button } from "./ui/button";
@@ -16,6 +16,7 @@ const navItems = [
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
+  const pathname = usePathname();
   const session = useSession();
   const logout = useLogout();
 
@@ -25,25 +26,32 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <header className="border-b border-slate-200 bg-white">
+    <div className="min-h-screen bg-canvas">
+      <header className="border-b border-border bg-surface shadow-card">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-6 py-4">
           <div>
-            <Link href="/dashboard" className="text-lg font-semibold text-slate-950">
+            <Link href="/dashboard" className="text-lg font-semibold text-text">
               Clarifi
             </Link>
-            <p className="text-xs text-slate-500">{session.data?.email}</p>
+            <p className="text-xs text-text-muted">{session.data?.email}</p>
           </div>
-          <nav className="flex flex-wrap items-center gap-2 text-sm">
-            {navItems.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className="rounded-md px-3 py-2 text-slate-600 hover:bg-slate-100 hover:text-slate-950"
-              >
-                {item.label}
-              </Link>
-            ))}
+          <nav className="flex flex-wrap items-center gap-1 text-sm">
+            {navItems.map((item) => {
+              const active = pathname === item.href;
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={
+                    active
+                      ? "rounded px-3 py-2 font-medium text-primary bg-primary/10"
+                      : "rounded px-3 py-2 text-text-muted hover:bg-canvas hover:text-text"
+                  }
+                >
+                  {item.label}
+                </Link>
+              );
+            })}
             <NotificationBell />
             <Button type="button" variant="outline" onClick={signOut} disabled={logout.isPending}>
               Sign out
