@@ -1,4 +1,4 @@
-import { withUserContext } from "@clarifi/shared";
+import { withReadOnlyUserContext } from "@clarifi/shared";
 import type { QueryIR } from "@clarifi/shared";
 import { compileQueryIR } from "./compiler.js";
 import { validateSQL } from "./validator.js";
@@ -39,8 +39,9 @@ export async function executeQueryIR(ir: QueryIR, userId: string): Promise<Query
   // Defense-in-depth: validate the SQL we generated before sending it to PG
   validateSQL(compiled.sql);
 
-  const rawRows = await withUserContext(userId, async (tx) => {
-    // statement_timeout scoped to this transaction only (guardrail: 2 s cap)
+  // Execute on the read-only, RLS-subject role (guardrail: AST-allowlisted SQL
+  // runs on a read-only DB role); statement_timeout caps runtime at 2 s.
+  const rawRows = await withReadOnlyUserContext(userId, async (tx) => {
     await tx.$executeRawUnsafe("SET LOCAL statement_timeout = '2000'");
     return tx.$queryRawUnsafe(compiled.sql, ...compiled.params) as Promise<unknown[]>;
   });

@@ -87,9 +87,15 @@ code itself.
 - **Date math must be UTC.** `digest.service.lastWeekRange` used local `getDay/setHours` but tests
   assert via `toISOString()` (UTC) → off-by-one week boundary on any non-UTC server. Fixed to
   `getUTCDay/setUTCDate/setUTCHours`. Compute all scheduled-window boundaries in UTC.
-- **OPEN guardrail follow-ups (NL→SQL, Epic 6 / story 6-2) — not yet done:**
-  (1) `nl-query/executor.ts` runs generated SQL via `withUserContext` on the **app role**; the
-  guardrail calls for a dedicated **read-only DB role**. (2) `nl-query/validator.ts` is a regex
-  **keyword-blocklist**, but the guardrail specifies an **AST allowlist** (allowlist, not blocklist).
-  Both are defense-in-depth behind the IR compiler + parameterized params + 2s `statement_timeout` +
-  mandatory LIMIT + RLS, but should be hardened to meet the letter of the guardrail before 6-2 → done.
+- **NL→SQL hardening (Epic 6 / story 6-2) — DONE 2026-06-19:**
+  (1) **Read-only DB role.** Migration `0008_readonly_role` adds `clarifi_readonly` (NOLOGIN,
+  NOBYPASSRLS, SELECT-only). `withReadOnlyUserContext(userId, fn)` in `packages/shared/src/prisma.ts`
+  sets that role + `SET LOCAL transaction_read_only = on` + the `app.current_user_id` GUC;
+  `nl-query/executor.ts` uses it instead of `withUserContext`. Proven: a write throws PG 25006
+  (`cannot execute UPDATE in a read-only transaction`) and RLS still isolates rows
+  (`nl-query/executor.test.ts`, DB-backed).
+  (2) **AST allowlist validator.** `nl-query/validator.ts` now parses with `pgsql-ast-parser` and
+  allowlists statement type (single SELECT), table (`transactions`), columns, functions (incl. `any`
+  for `= ANY($n)`), and rejects joins/subqueries/set-ops; mandatory LIMIT. Replaced the old regex
+  keyword-blocklist. Tests assert it accepts all compiler output and rejects unknown columns/functions.
+  Both run on top of the IR compiler + parameterized params + 2s `statement_timeout` + RLS.

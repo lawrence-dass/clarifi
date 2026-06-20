@@ -61,5 +61,36 @@ export async function withUserContext<T>(
   });
 }
 
+/**
+ * Like {@link withUserContext}, but for the NL-query execution path: runs as the
+ * least-privilege, SELECT-only `clarifi_readonly` role inside a transaction that
+ * is also marked `transaction_read_only = on`.
+ *
+ * Guardrail (CLAUDE.md): generated NL→SQL is validated against an AST allowlist
+ * AND executed on a read-only DB role. This helper provides the read-only role;
+ * RLS still isolates rows by `app.current_user_id`. Defense in depth — even a
+ * compiler/validator gap cannot mutate data here. NEVER run trusted writes
+ * through this helper.
+ */
+export async function withReadOnlyUserContext<T>(
+  userId: string,
+  fn: (tx: Prisma.TransactionClient) => Promise<T>,
+): Promise<T> {
+  if (typeof userId !== "string" || !UUID_RE.test(userId)) {
+    throw new Error("withReadOnlyUserContext: userId must be a valid UUID");
+  }
+  return prisma.$transaction(async (tx) => {
+    // Least-privilege, RLS-subject, SELECT-only role. The role name is a
+    // hardcoded literal — never interpolate a caller-derived value here.
+    await tx.$executeRawUnsafe('SET LOCAL ROLE "clarifi_readonly"');
+    await tx.$executeRaw`SELECT set_config('app.current_user_id', ${userId}, true)`;
+    // Belt-and-suspenders: the database rejects any write in this transaction
+    // even if a grant or the validator ever regresses. Set last so the GUC
+    // write above isn't affected.
+    await tx.$executeRawUnsafe("SET LOCAL transaction_read_only = on");
+    return fn(tx);
+  });
+}
+
 export { Prisma };
 export type { PrismaClient } from "./generated/prisma/client.js";
