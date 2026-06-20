@@ -187,6 +187,62 @@ evidence, not claims.
 
 ---
 
+## Epic 9 (UI Redesign) — addendum for presentational web stories
+
+Epic 9 restyles the web UI onto a shared design system. These stories are **web-only,
+presentational, Tier 1** — they differ enough from the backend stories above that the
+gate and guardrails apply differently. The full cycle (one story at a time, story file
+to desktop standard, self-review on the three lenses, "no red flags" merge) is unchanged;
+the deltas are:
+
+**Design source of truth.** `docs/design-reference.md` (extracted from
+`docs/screenshots/`) is the spec — palette, type scale, component catalogue, and a
+screen-by-screen mapping. Read it before any Epic 9 story. The token + primitive
+**foundation already exists (Story 9.1, done):**
+- Tokens: `apps/web/src/app/globals.css` (CSS variables) + `apps/web/tailwind.config.ts`.
+- Primitives: `apps/web/src/components/ui/*` — Button, Card (+`CardLabel`), Input,
+  Skeleton (restyled) and Label, Badge, StatDelta, KpiTile, Progress, SegmentedBar (new).
+
+**Reuse, don't reinvent.** Use the existing tokens and primitives. Do **not** introduce
+colors outside the token set, a second button style, or new `slate-*` utilities — each
+screen story *replaces* `slate-*` with tokens. If a primitive is missing, prefer adding
+it to `components/ui/*` over a one-off.
+
+**The one guardrail that still applies: money display discipline.** Even though these are
+visual stories, the money rules hold — components do **no** monetary arithmetic (values
+arrive pre-computed as integer cents and are formatted via the shared display formatter),
+amounts are **per-currency and never combined**, and no PII is rendered. If a story pulls
+you into `apps/api`, `packages/shared`, schema, or any data/query logic, it is **out of
+scope** — stop and re-scope. The expected diff for an Epic 9 story is confined to
+`apps/web/src/**` (a screen + maybe a primitive).
+
+**Gate delta — also run the web build.** `pnpm verify:story` still applies and must exit 0
+(it runs `pnpm -r typecheck` + `pnpm -r test`, which cover the web package, and it still
+requires a wired DB so the *existing* suite doesn't skip — bootstrap Postgres as usual).
+**But the gate does not build Next/Tailwind**, and token/utility-class mistakes only fail
+at build time. So for every Epic 9 story, additionally run:
+
+```
+pnpm --filter @clarifi/web build
+```
+
+and treat a failed web build as a **red flag** (blocks autonomous merge), exactly like a
+failed `verify:story`. Record both the `verify:story` summary and the web `build` result
+in Completion Notes.
+
+**Self-review emphasis (the three lenses, UI flavor).** Blind Hunter → no off-token colors,
+no duplicated primitive, no stray `fetch`/format/loading pattern. Edge Case Hunter →
+loading/error/empty states per section, narrow-viewport layout, over-budget (`percentUsed`
+> 100 → clamp bar, show real value), a currency absent for the month, signed/zero deltas
+(neutral affordance for zero — see Story 3.6's review finding). Acceptance Auditor → each
+AC maps to a component test or a named gate (typecheck/test/**build**).
+
+**Story order.** `9.2 app shell → 9.3 dashboard → 9.4 budgets → 9.5 auth → 9.6 NL-query
+chat → 9.7 anomaly feed → 9.8 notifications → 9.9 consents → 9.10 account`. One at a time;
+each builds on 9.2's shell.
+
+---
+
 ## Commands quick reference
 
 ```
@@ -203,4 +259,5 @@ pnpm --filter @clarifi/shared db:generate        # after schema changes (manual 
 pnpm --filter @clarifi/shared db:migrate         # apply migrations (creates RLS roles)
 
 pnpm verify:story                                # the gate — must exit 0 before done/merge
+pnpm --filter @clarifi/web build                 # Epic 9 (UI) stories: also build — verify:story doesn't
 ```

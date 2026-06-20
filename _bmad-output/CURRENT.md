@@ -1,39 +1,53 @@
-# Handover — 2026-06-18 14:04 | Claude Opus 4.8 (claude-opus-4-8)
+# Handover — 2026-06-19 21:10 | Claude Opus 4.8 (claude-opus-4-8)
 
 ## Mode
-General handover (between stories). User is continuing **from mobile/remote** going forward.
+General handover (between stories). **Epic 9 (UI Redesign) opened.** Mobile session continues it.
 
 ## Sprint State
-- Epics 1, 2, 3 **done** (Epic 3 = backend APIs + web UI). Epic 4 **in-progress**: 4-1 done, 4-2 done, **4-3 ready-for-dev** (specced, handed to Codex, NOT yet implemented).
-- Branch is now **`main`** (renamed from epic-3-spending-dashboard) and **pushed to `origin` git@github.com:lawrence-dass/clarifi.git** (tracking set). Stale local `epic-1-foundation` branch can be deleted.
-- Authoritative status: `sprint-status.yaml`.
+- Epics 1–8 `done`. **Epic 9 `in-progress`:** `9.1 done`, **`9.2 ready-for-dev`**, `9.3–9.10 backlog`.
+- Branch `main`, pushed to origin. Tip is the Epic-9 foundation + scaffolding merge.
 
 ## What Happened This Session
-- Verified + committed Codex's work for 3.1–3.6 (Epic 3 backend + UI) and 4.1–4.2; marked Epics 2 & 3 done.
-- Created stories 3.5, 3.6, 4.1, 4.2, 4.3 (each with Pre-Review Due Diligence + plain-text Codex Handoff).
-- Initialized git remote and pushed `main` to GitHub. Secrets check passed (only `.env.example` tracked; `.env*` gitignored).
+- Studied the reference screenshots in `docs/screenshots/` and wrote the design spec
+  `docs/design-reference.md` (palette, type scale, component catalogue, screen-by-screen map).
+- **Story 9.1 (done):** laid the design-token foundation — CSS variables in `globals.css` +
+  Tailwind theme in `tailwind.config.ts` (neutrals, royal-blue primary, semantic + categorical
+  hues, UPPERCASE micro-label + KPI type, radii, shadows), wired Inter via `next/font`, switched
+  the canvas to tokens. Restyled Button/Card/Input/Skeleton (APIs unchanged) and added Label,
+  Badge, StatDelta, KpiTile, Progress, SegmentedBar.
+- Opened **Epic 9** in BMAD: epic shard (`planning-artifacts/epics/epic-9-ui-redesign.md`,
+  10 stories), epic-list + index, `sprint-status.yaml` block, story files 9.1 (retroactive, done)
+  and 9.2 (app shell, ready-for-dev with Pre-Review Due Diligence).
+- Updated `_bmad/handoff/mobile-workflow.md` with an **Epic 9 addendum** (design source of truth,
+  reuse tokens/primitives, money display discipline, and the gate delta: also run
+  `pnpm --filter @clarifi/web build` since `verify:story` doesn't build Next/Tailwind).
 
 ## Decisions Made
-- Epic-3 UI was deferred during 3.1–3.4, then tracked as 3.5 (web foundation) + 3.6 (dashboard UI); both done. There is no standalone "UI epic" — each feature epic owns its frontend slice.
-- 4.x scoped backend-first: 4.1 connect+token-encryption, 4.2 webhook→outbox→cursor sync, 4.3 lifecycle. Plaid web Link widget still deferred.
-- Codex Handoff is emitted as **plain text** (not a blockquote) — baked into the bmad-create-story `on_complete` hook.
+- The UI redesign is tracked as **Epic 9** (not ad-hoc), so it lives in the same epic/story/sprint
+  machinery as the rest of the project. Stories are presentational, web-only, mostly Tier 1.
+- Epic-9 gate = `verify:story` (exit 0) **plus** `pnpm --filter @clarifi/web build` (token/class
+  errors only surface at build). A failed web build is a red flag, same as a non-green verify:story.
 
-## Last Workflow
-`bmad-create-story` (4.3) → then git remote setup + push → `/session-end`.
+## Next Action (mobile session)
+Implement **Story 9.2 — App shell & navigation**
+(`_bmad-output/implementation-artifacts/9-2-app-shell-navigation.md`): restyle
+`apps/web/src/components/app-shell.tsx` onto the 9.1 tokens with an active-nav affordance in
+`primary` via `usePathname`. Web-only, presentational, no behaviour change. Follow the mobile
+workflow end to end, then 9.3 (dashboard) onward — one story at a time.
 
 ## Context Needed
-- **Next loop**: Codex implements 4.3 → user says "Codex done" → Claude verifies (typecheck + targeted tests + guardrail scan) → mark `epic-4: done`.
-- **Deploy gate**: `ENCRYPTION_KEY` (32-byte) is now REQUIRED or the API won't boot (4.1); also Plaid/Anthropic keys per env. Ensure CI/Render set them.
-- DB-gated tests use the `hasDb` skip and the `apps/api/.env` DATABASE_URL; run with `--testTimeout=40000 --hookTimeout=40000` if the 5s timeout trips.
-- Open minor cleanup: a client-safe `@clarifi/shared/enums` subpath to de-dupe the `Category` list in the web app (see project-context).
-
-## Next Action
-Await Codex's 4.3 implementation, then verify and close Epic 4. After that, start **Epic 5 (5-1 robust stats engine)** via `bmad-create-story` — highest portfolio value, reuses the worker/outbox patterns.
+- **Design spec:** `docs/design-reference.md` (+ `docs/screenshots/`).
+- **Foundation to reuse (9.1):** `apps/web/tailwind.config.ts`, `apps/web/src/app/globals.css`,
+  `apps/web/src/components/ui/*`. Don't reintroduce `slate-*` or off-token colors.
+- **Process:** `_bmad/handoff/mobile-workflow.md` § Epic 9 addendum; gate is `verify:story` + web `build`.
+- Untracked `docs/screenshots/` are now committed (the design reference images).
+- `apps/web/next-env.d.ts` shows a benign auto-generated path change — ignore/leave it.
 
 ## References
 - Sprint: `_bmad-output/implementation-artifacts/sprint-status.yaml`
-- Next story (ready-for-dev): `_bmad-output/implementation-artifacts/4-3-transaction-lifecycle-pending-to-posted-to-removed.md`
+- Epic shard: `_bmad-output/planning-artifacts/epics/epic-9-ui-redesign.md`
 - Cross-story learnings: `_bmad-output/project-context.md`
+- Mobile process + gate: `_bmad/handoff/mobile-workflow.md`, `scripts/verify-story.sh`
 
 ---
-*Generated by /session-end — 2026-06-18 14:04*
+*Updated manually for the Epic 9 mobile handoff — 2026-06-19 21:10*
