@@ -34,7 +34,7 @@ active-state affordance.
 3. The sign-out control uses the restyled `Button` (`variant="outline"`); the `NotificationBell` continues to render in the nav and is visually consistent (no behaviour change).
 4. Layout is responsive: the nav wraps/collapses gracefully on narrow widths as it does today (no horizontal overflow); the content container keeps a sensible max width and padding using tokens.
 5. **No behaviour change:** routes, links, the `useSession`/`useLogout` flow, and the redirect-on-sign-out are unchanged. No new dependency.
-6. **Quality gates:** `pnpm --filter @clarifi/web typecheck`, `pnpm --filter @clarifi/web test`, and `pnpm --filter @clarifi/web build` pass.
+6. **Quality gate:** `pnpm verify:story:web` exits 0 — the web-only gate (scope guard + web typecheck + web test with zero skips + Next/Tailwind production build). No DB needed for this story.
 
 ## Tasks / Subtasks
 
@@ -45,7 +45,7 @@ active-state affordance.
 - [ ] Task 3: Controls (AC: #3)
   - [ ] Sign-out via restyled `Button variant="outline"`; verify `NotificationBell` sits consistently.
 - [ ] Task 4: Verify (AC: #5, #6)
-  - [ ] Confirm no route/auth/data change; run typecheck, test, build. Optionally drive via the `run`/`verify` skills (sign in → shell renders, active item highlights, sign-out redirects).
+  - [ ] Confirm no route/auth/data change; run `pnpm verify:story:web` (exit 0). Optionally drive via the `run`/`verify` skills (sign in → shell renders, active item highlights, sign-out redirects).
 
 ## Dev Notes
 
@@ -108,7 +108,7 @@ review runs three lenses — Blind Hunter (context-free bugs), Edge Case Hunter
 - **Edge / failure paths (Edge Case Hunter):** active highlighting on `/dashboard` vs child routes (e.g. `/dashboard/upload`) — top-level exact match shouldn't double-highlight or drop highlight unexpectedly; narrow viewport nav wrap (no overflow); signed-out/loading session (email absent) renders without layout break; sign-out still redirects.
 - **Reuse first (Blind Hunter / simplify):** use the 9.1 `Button` and tokens; don't hand-roll a new button or off-token colors; don't duplicate `cn`.
 - **Scope discipline:** restyle only — no navigation IA redesign, no new routes, no logo asset. Flag any backend touch (there should be none).
-- **Evidence, not claims:** paste actual typecheck/test/build output into Completion Notes; note the manual run if used.
+- **Evidence, not claims:** paste the actual `pnpm verify:story:web` summary (typecheck + web test + build, exit 0) into Completion Notes; note the manual run if used.
 
 ## Dev Agent Record
 

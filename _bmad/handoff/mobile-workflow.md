@@ -216,19 +216,25 @@ you into `apps/api`, `packages/shared`, schema, or any data/query logic, it is *
 scope** — stop and re-scope. The expected diff for an Epic 9 story is confined to
 `apps/web/src/**` (a screen + maybe a primitive).
 
-**Gate delta — also run the web build.** `pnpm verify:story` still applies and must exit 0
-(it runs `pnpm -r typecheck` + `pnpm -r test`, which cover the web package, and it still
-requires a wired DB so the *existing* suite doesn't skip — bootstrap Postgres as usual).
-**But the gate does not build Next/Tailwind**, and token/utility-class mistakes only fail
-at build time. So for every Epic 9 story, additionally run:
+**Gate — use the web-only variant `pnpm verify:story:web`.** A presentational Epic 9
+story touches zero backend code, so the full `verify:story` (which runs the DB-backed API
+suite and hard-fails on any skip) would force you to stand up Postgres just to test
+unrelated code. Instead use the no-database sibling:
 
 ```
-pnpm --filter @clarifi/web build
+pnpm verify:story:web
 ```
 
-and treat a failed web build as a **red flag** (blocks autonomous merge), exactly like a
-failed `verify:story`. Record both the `verify:story` summary and the web `build` result
-in Completion Notes.
+It (1) **refuses if the diff isn't web-only** — any file outside `apps/web/`/`docs/`/`_bmad`
+makes it fail and tell you to run the full gate; (2) typechecks the web package;
+(3) runs the web test suite with **zero skips allowed**; and (4) runs the
+**Next/Tailwind production build** — the load-bearing check the full gate omits, where
+token/utility-class mistakes surface. It must **exit 0** before done/merge; a failure is a
+**red flag** exactly like a failed `verify:story`. Paste its summary into Completion Notes.
+
+If a story turns out to touch `apps/api`, `packages/shared`, schema, or any data/query
+logic, it is **not** web-only — `verify:story:web` will refuse, and you must bootstrap a
+real DB and run the full `pnpm verify:story` instead (and the story is no longer Tier 1).
 
 **Self-review emphasis (the three lenses, UI flavor).** Blind Hunter → no off-token colors,
 no duplicated primitive, no stray `fetch`/format/loading pattern. Edge Case Hunter →
@@ -259,5 +265,5 @@ pnpm --filter @clarifi/shared db:generate        # after schema changes (manual 
 pnpm --filter @clarifi/shared db:migrate         # apply migrations (creates RLS roles)
 
 pnpm verify:story                                # the gate — must exit 0 before done/merge
-pnpm --filter @clarifi/web build                 # Epic 9 (UI) stories: also build — verify:story doesn't
+pnpm verify:story:web                            # Epic 9 web-only stories: no-DB gate (typecheck + web test + build)
 ```

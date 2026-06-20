@@ -2,7 +2,7 @@
   "name": "clarifi",
   "version": "1.1.0",
   "private": true,
-  "description": "Canadian fintech transaction intelligence — categorization, anomaly detection, NL financial querying",
+  "description": "Canadian fintech transaction intelligence \u2014 categorization, anomaly detection, NL financial querying",
   "author": "Lawrence Dass",
   "license": "UNLICENSED",
   "engines": {
@@ -17,6 +17,7 @@
     "lint": "pnpm -r lint",
     "test": "pnpm -r test",
     "verify:story": "bash scripts/verify-story.sh",
+    "verify:story:web": "bash scripts/verify-story-web.sh",
     "db:generate": "pnpm --filter @clarifi/shared db:generate",
     "db:migrate": "pnpm --filter @clarifi/shared db:migrate"
   },

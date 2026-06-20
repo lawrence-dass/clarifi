@@ -25,8 +25,11 @@ General handover (between stories). **Epic 9 (UI Redesign) opened.** Mobile sess
 ## Decisions Made
 - The UI redesign is tracked as **Epic 9** (not ad-hoc), so it lives in the same epic/story/sprint
   machinery as the rest of the project. Stories are presentational, web-only, mostly Tier 1.
-- Epic-9 gate = `verify:story` (exit 0) **plus** `pnpm --filter @clarifi/web build` (token/class
-  errors only surface at build). A failed web build is a red flag, same as a non-green verify:story.
+- Epic-9 web-only stories use a dedicated **no-DB gate: `pnpm verify:story:web`**
+  (`scripts/verify-story-web.sh`) — scope guard (refuses a non-web diff) + web typecheck + web
+  test (zero skips) + Next/Tailwind production build. This removes the Postgres dependency that
+  the full `verify:story` imposes, so 9.2–9.10 don't need a database. A non-green
+  `verify:story:web` is a red flag, same as a non-green `verify:story`.
 
 ## Next Action (mobile session)
 Implement **Story 9.2 — App shell & navigation**
@@ -39,7 +42,7 @@ workflow end to end, then 9.3 (dashboard) onward — one story at a time.
 - **Design spec:** `docs/design-reference.md` (+ `docs/screenshots/`).
 - **Foundation to reuse (9.1):** `apps/web/tailwind.config.ts`, `apps/web/src/app/globals.css`,
   `apps/web/src/components/ui/*`. Don't reintroduce `slate-*` or off-token colors.
-- **Process:** `_bmad/handoff/mobile-workflow.md` § Epic 9 addendum; gate is `verify:story` + web `build`.
+- **Process:** `_bmad/handoff/mobile-workflow.md` § Epic 9 addendum; gate is `pnpm verify:story:web` (no DB).
 - Untracked `docs/screenshots/` are now committed (the design reference images).
 - `apps/web/next-env.d.ts` shows a benign auto-generated path change — ignore/leave it.
 
