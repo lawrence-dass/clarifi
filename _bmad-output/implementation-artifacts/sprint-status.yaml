@@ -111,7 +111,7 @@ development_status:
   # Epic 9: UI Redesign
   epic-9: in-progress
   9-1-design-token-foundation-and-primitives: done
-  9-2-app-shell-navigation: ready-for-dev
+  9-2-app-shell-navigation: done
   9-3-dashboard-restyle: backlog
   9-4-budgets-restyle: backlog
   9-5-auth-screens-restyle: backlog
