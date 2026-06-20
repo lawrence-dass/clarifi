@@ -1,3 +1,60 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/*
+ * Clarifi design tokens — see docs/design-reference.md.
+ * Colors are space-separated RGB channels so Tailwind's
+ * rgb(var(--x) / <alpha-value>) can apply opacity modifiers.
+ */
+@layer base {
+  :root {
+    /* neutrals */
+    --canvas: 244 246 250; /* #F4F6FA */
+    --surface: 255 255 255; /* #FFFFFF */
+    --border: 227 231 239; /* #E3E7EF */
+    --border-strong: 205 212 224; /* #CDD4E0 */
+    --text: 28 39 60; /* #1C273C */
+    --text-muted: 122 132 153; /* #7A8499 */
+    --text-faint: 169 176 191; /* #A9B0BF */
+
+    /* accent */
+    --primary: 1 104 250; /* #0168FA */
+    --primary-hover: 1 85 212; /* #0155D4 */
+    --primary-ink: 16 24 58; /* #10183A */
+
+    /* semantic */
+    --success: 45 203 117; /* #2DCB75 */
+    --danger: 220 53 69; /* #DC3545 */
+    --warning: 251 180 84; /* #FBB454 */
+    --info: 26 182 232; /* #1AB6E8 */
+
+    /* categorical (charts, tags, tinted blocks) */
+    --cat-blue: 1 104 250; /* #0168FA */
+    --cat-teal: 0 214 230; /* #00D6E6 */
+    --cat-green: 45 203 117; /* #2DCB75 */
+    --cat-amber: 251 180 84; /* #FBB454 */
+    --cat-pink: 241 85 108; /* #F1556C */
+    --cat-purple: 111 66 193; /* #6F42C1 */
+  }
+
+  * {
+    border-color: rgb(var(--border));
+  }
+
+  body {
+    background-color: rgb(var(--canvas));
+    color: rgb(var(--text));
+    font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+@layer components {
+  /* The signature UPPERCASE letter-spaced micro-label used for section
+     headers, table column heads, and form field labels. */
+  .label-micro {
+    @apply text-label uppercase text-text-muted;
+  }
+}
