@@ -31,3 +31,7 @@ Users experience the Canadian open-banking consent model (grant/scope/revoke) vi
 ## Epic 8: Notifications, Observability & Polish
 Users stay informed (anomaly/budget alerts, weekly digest); the system is observable and production-credible.
 **FRs covered:** FR28, FR29, FR30
+
+## Epic 9: UI Redesign
+Refresh the web UI onto a cohesive, bank-grade design system (shared tokens + primitives, then a screen-by-screen rollout). Presentational only.
+**FRs covered:** none new (UX refresh of FR13–FR31 surfaces)

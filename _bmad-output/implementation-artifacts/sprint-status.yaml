@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-06-15
-last_updated: 2026-06-19 (epics 6 & 8 done — NL→SQL hardened, full suite green 357)
+last_updated: 2026-06-19 (epic 9 UI Redesign opened — 9.1 tokens+primitives done, 9.2 ready-for-dev)
 project: Clarifi
 project_key: NOKEY
 tracking_system: file-system
@@ -107,3 +107,17 @@ development_status:
   8-3-weekly-email-digest: done
   8-4-observability-ci: done
   epic-8-retrospective: optional
+
+  # Epic 9: UI Redesign
+  epic-9: in-progress
+  9-1-design-token-foundation-and-primitives: done
+  9-2-app-shell-navigation: ready-for-dev
+  9-3-dashboard-restyle: backlog
+  9-4-budgets-restyle: backlog
+  9-5-auth-screens-restyle: backlog
+  9-6-nl-query-chat-restyle: backlog
+  9-7-anomaly-feed-restyle: backlog
+  9-8-notifications-restyle: backlog
+  9-9-consents-dashboard-restyle: backlog
+  9-10-account-settings-restyle: backlog
+  epic-9-retrospective: optional
