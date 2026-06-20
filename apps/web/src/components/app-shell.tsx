@@ -11,6 +11,7 @@ const navItems = [
   { href: "/dashboard/query", label: "Query" },
   { href: "/dashboard/upload", label: "Upload" },
   { href: "/dashboard/budgets", label: "Budgets" },
+  { href: "/anomalies", label: "Anomalies" },
   { href: "/consents", label: "Consents" },
   { href: "/dashboard/account", label: "Account" },
 ];
