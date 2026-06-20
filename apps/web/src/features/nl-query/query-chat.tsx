@@ -3,7 +3,12 @@
 import { useRef, useState } from "react";
 import { ErrorState } from "@/components/error-state";
 import { Button } from "@/components/ui/button";
+import { formatMoney } from "@/lib/format-money";
 import { type NLQueryResponse, useNLQuery } from "./query.hooks";
+
+// Metrics whose value is integer cents (the rest, e.g. transaction_count, are
+// plain counts). Money is formatted to dollars only here, at the display layer.
+const MONEY_METRICS = new Set(["total_spend", "total_income", "net", "average_transaction"]);
 
 interface Turn {
   question: string;
@@ -113,19 +118,20 @@ function QueryResult({ response }: { response: NLQueryResponse }) {
     return <p className="text-sm text-text-muted">No data found for this query.</p>;
   }
 
-  // Scalar result — single row, no dimensions
+  // Scalar result — single row, no dimensions. The metric column is aliased
+  // `value` by the SQL compiler (not the metric name).
   if (dimensions.length === 0 && rows.length === 1) {
     const row = rows[0]!;
-    const value = row[metric];
     return (
       <div className="py-2">
         <p className="label-micro mb-1">{metricLabel(metric)}</p>
-        <p className="text-kpi text-text tabular-nums">{formatValue(value)}</p>
+        <p className="text-kpi text-text tabular-nums">{formatMetric(metric, row.value)}</p>
       </div>
     );
   }
 
-  // Table result
+  // Table result — dimension cells are keyed by their alias; the metric cell is
+  // always the `value` column.
   const cols = [...dimensions, metric];
   return (
     <div className="overflow-x-auto">
@@ -145,14 +151,20 @@ function QueryResult({ response }: { response: NLQueryResponse }) {
         <tbody className="divide-y divide-border">
           {rows.map((row, i) => (
             <tr key={i}>
-              {cols.map((col) => (
-                <td
-                  key={col}
-                  className={`py-2 ${col === metric ? "text-right tabular-nums font-medium text-text" : "text-text-muted"}`}
-                >
-                  {formatValue(row[col])}
-                </td>
-              ))}
+              {cols.map((col) =>
+                col === metric ? (
+                  <td
+                    key={col}
+                    className="py-2 text-right tabular-nums font-medium text-text"
+                  >
+                    {formatMetric(metric, row.value)}
+                  </td>
+                ) : (
+                  <td key={col} className="py-2 text-text-muted">
+                    {formatDimension(row[col])}
+                  </td>
+                ),
+              )}
             </tr>
           ))}
         </tbody>
@@ -165,7 +177,21 @@ function metricLabel(key: string): string {
   return key.replace(/_/g, " ");
 }
 
-function formatValue(value: string | number | null | undefined): string {
+// Metric value: money metrics are integer cents (average_transaction is a
+// float) → round to whole cents, then format to dollars at the display layer.
+type Cell = string | number | null | undefined;
+
+function formatMetric(metric: string, value: Cell): string {
+  if (value === null || value === undefined) return "—";
+  const num = typeof value === "number" ? value : Number(value);
+  if (MONEY_METRICS.has(metric) && Number.isFinite(num)) {
+    return formatMoney(Math.round(num));
+  }
+  if (typeof value === "number") return value.toLocaleString();
+  return String(value);
+}
+
+function formatDimension(value: Cell): string {
   if (value === null || value === undefined) return "—";
   if (typeof value === "number") return value.toLocaleString();
   return String(value);
