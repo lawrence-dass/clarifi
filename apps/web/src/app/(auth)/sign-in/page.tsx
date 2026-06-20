@@ -9,8 +9,8 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { ErrorState } from "@/components/error-state";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { apiClient } from "@/lib/api-client";
 import type { LoginPayload, PublicUser } from "@/lib/auth";
 
@@ -47,42 +47,51 @@ function SignInForm() {
   });
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center px-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>Sign in</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form className="space-y-4" onSubmit={form.handleSubmit((values) => login.mutate(values))}>
-            <FieldError message={form.formState.errors.email?.message} />
-            <Input autoComplete="email" placeholder="Email" {...form.register("email")} />
-            <FieldError message={form.formState.errors.password?.message} />
-            <Input
-              autoComplete="current-password"
-              placeholder="Password"
-              type="password"
-              {...form.register("password")}
-            />
-            {login.isError ? <ErrorState error={login.error} /> : null}
-            <Button type="submit" className="w-full" disabled={login.isPending}>
-              Sign in
-            </Button>
-          </form>
-          <p className="mt-4 text-sm text-slate-600">
-            Need an account?{" "}
-            <Link href="/sign-up" className="font-medium text-slate-950 underline">
-              Create one
-            </Link>
-          </p>
-        </CardContent>
-      </Card>
+    <main className="mx-auto flex min-h-screen max-w-sm flex-col justify-center px-6">
+      <div className="mb-8">
+        <h1 className="text-2xl font-semibold text-text">Sign in to Clarifi</h1>
+        <p className="mt-1 text-sm text-text-muted">Enter your credentials to continue.</p>
+      </div>
+      <form className="space-y-5" onSubmit={form.handleSubmit((values) => login.mutate(values))}>
+        <div>
+          <Label htmlFor="email">Email</Label>
+          <Input
+            id="email"
+            autoComplete="email"
+            placeholder="you@example.com"
+            {...form.register("email")}
+          />
+          <FieldError message={form.formState.errors.email?.message} />
+        </div>
+        <div>
+          <Label htmlFor="password">Password</Label>
+          <Input
+            id="password"
+            autoComplete="current-password"
+            placeholder="••••••••"
+            type="password"
+            {...form.register("password")}
+          />
+          <FieldError message={form.formState.errors.password?.message} />
+        </div>
+        {login.isError ? <ErrorState error={login.error} /> : null}
+        <Button type="submit" className="w-full" disabled={login.isPending}>
+          Sign in
+        </Button>
+      </form>
+      <p className="mt-6 text-sm text-text-muted">
+        Need an account?{" "}
+        <Link href="/sign-up" className="font-medium text-primary hover:underline">
+          Create one
+        </Link>
+      </p>
     </main>
   );
 }
 
 function FieldError({ message }: { message?: string }) {
   if (!message) return null;
-  return <p className="text-sm text-red-700">{message}</p>;
+  return <p className="mt-1 text-xs text-danger">{message}</p>;
 }
 
 function safeNextPath(next: string | null): string {
