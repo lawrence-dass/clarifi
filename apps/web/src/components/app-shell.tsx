@@ -8,6 +8,7 @@ import { Button } from "./ui/button";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard" },
+  { href: "/dashboard/query", label: "Query" },
   { href: "/dashboard/upload", label: "Upload" },
   { href: "/dashboard/budgets", label: "Budgets" },
   { href: "/consents", label: "Consents" },
