@@ -11,12 +11,24 @@ export interface CategorizeJobData {
 
 let queue: Queue<CategorizeJobData> | null = null;
 
-export function getRedisConnectionOptions(): ConnectionOptions {
-  if (!config.REDIS_URL) throw new Error("REDIS_URL is required for categorization queue");
-  if (config.REDIS_URL.includes("dummy-host")) {
-    throw new Error("REDIS_URL is not configured for categorization queue");
+/**
+ * Pure validator for the Redis connection string. Returns a human-readable
+ * reason when REDIS_URL is unusable (missing or still the .env.example
+ * placeholder), or null when it looks configured. Used both by the queue
+ * accessors and by the worker entrypoint's loud startup check.
+ */
+export function redisConfigError(redisUrl: string | undefined): string | null {
+  if (!redisUrl) return "REDIS_URL is not set";
+  if (redisUrl.includes("dummy-host")) {
+    return "REDIS_URL is still the .env.example placeholder (dummy-host)";
   }
-  return { url: config.REDIS_URL, maxRetriesPerRequest: null };
+  return null;
+}
+
+export function getRedisConnectionOptions(): ConnectionOptions {
+  const reason = redisConfigError(config.REDIS_URL);
+  if (reason) throw new Error(`Redis is not configured for the categorization queue: ${reason}`);
+  return { url: config.REDIS_URL as string, maxRetriesPerRequest: null };
 }
 
 export function getCategorizeQueue(): Queue<CategorizeJobData> {
