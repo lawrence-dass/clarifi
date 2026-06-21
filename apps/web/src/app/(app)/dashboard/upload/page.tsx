@@ -1,16 +1,7 @@
-import { UploadPanel } from "@/features/upload/upload-panel";
+import { redirect } from "next/navigation";
 
+// Upload is now a header action (the "+ Add data" modal), not a destination.
+// Keep the route alive for old deep-links by redirecting to the dashboard.
 export default function UploadPage() {
-  return (
-    <div className="mx-auto grid max-w-2xl gap-6">
-      <section>
-        <h1 className="text-2xl font-semibold text-text">Upload transactions</h1>
-        <p className="mt-1 text-sm text-text-muted">
-          Import a CSV bank statement. Duplicates are detected automatically, so re-importing
-          the same file is safe.
-        </p>
-      </section>
-      <UploadPanel />
-    </div>
-  );
+  redirect("/dashboard");
 }

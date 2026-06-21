@@ -39,3 +39,11 @@ Refresh the web UI onto a cohesive, bank-grade design system (shared tokens + pr
 ## Epic 10: Reliability & Hardening
 Post-feature reliability pass — durable categorization recovery, bounded worker transactions, graceful LLM degradation, and assorted hardening found running the app end to end.
 **FRs covered:** none new (hardening of existing FRs)
+
+## Epic 11: UX Refinement
+Tighten information architecture (nav shows only destinations; upload→modal, account→profile menu, budgets de-nav, anomaly insights card + triage page) and a visual polish pass to match the bank-grade reference. Presentational/IA only.
+**FRs covered:** none new (UX/IA refinement of FR13–FR31 surfaces)
+
+## Epic 12: Public Demo Access
+One-click, no-login "Try the live demo" — an ephemeral RLS-isolated demo user seeded via the canonical adapters (sample CSV + Plaid Sandbox), with Turnstile + rate limits + per-session LLM quotas + a TTL reaper to bound cost and bot abuse.
+**FRs covered:** none in current PRD (net-new public-access capability — flag for PRD addendum)

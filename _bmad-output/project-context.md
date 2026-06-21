@@ -99,3 +99,27 @@ code itself.
   for `= ANY($n)`), and rejects joins/subqueries/set-ops; mandatory LIMIT. Replaced the old regex
   keyword-blocklist. Tests assert it accepts all compiler output and rejects unknown columns/functions.
   Both run on top of the IR compiler + parameterized params + 2s `statement_timeout` + RLS.
+
+## Learnings from Epic 10 (Reliability & Hardening) — 2026-06-21
+
+- **Outbox marks `processed` on enqueue, not on success.** `categorize.outbox.ts` /
+  `plaid-sync.outbox.ts` mark the row processed once the BullMQ job is *added*, so a job
+  that exhausts its retries is never re-dispatched and work is silently lost. Recovery is a
+  **reconciliation sweep** that re-derives pending work from the durable source of truth
+  (uncategorized transactions), not the outbox flag — `categorize.reconcile.ts`
+  (`startCategorizeReconciler`, wired in `workers/index.ts`; grace 2m / max-age 24h / 5m
+  interval). Reuse this "did the async work actually finish?" pattern for future recovery.
+- **Bound worker transactions by a constant, not the batch.** The categorize worker chunks
+  its write+detect loop (`TX_CHUNK_SIZE = 5`) so a transaction never grows with batch size
+  (the P2028 cause). Don't put an unbounded loop inside one `withUserContext`.
+- **`withUserContext` takes optional `{ timeout, maxWait }`** forwarded to `$transaction`
+  (`packages/shared/src/prisma.ts`) — additive; RLS `SET LOCAL ROLE` / `set_config` unchanged.
+- **DB tests need an isolated database.** They assert exact row counts; running against the
+  shared Supabase while a worker is live makes `verify:story` flaky (the worker mutates rows
+  mid-test). Set `TEST_DATABASE_URL` (vitest.config redirects the suite) to a throwaway local
+  Postgres with no worker on it. `fileParallelism` is already off — it's the external worker,
+  not cross-file races.
+- **Local-dev env gotchas:** web vars (`NEXT_PUBLIC_API_URL`, `API_UPSTREAM_URL`) live in
+  `apps/web/.env.local` (Next reads app-dir env, not root `.env`); `REDIS_URL` must be the TCP
+  `rediss://…:6379` string (BullMQ can't use `UPSTASH_REDIS_REST_*`); the worker is a separate
+  process (`pnpm --filter @clarifi/api worker`), not started by `pnpm dev`.
