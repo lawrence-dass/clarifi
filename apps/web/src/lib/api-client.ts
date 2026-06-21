@@ -24,10 +24,39 @@ export interface ApiClientOptions extends Omit<RequestInit, "body"> {
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 
-export async function apiClient<TResponse>(
-  path: string,
-  options: ApiClientOptions = {},
-): Promise<TResponse> {
+// Auth endpoints where a 401 means "bad/absent credentials", not "access token
+// expired" — refreshing and retrying these would either recurse or mask a real
+// auth failure, so they opt out of the refresh-and-retry below.
+const NO_REFRESH_PATHS = ["/auth/refresh", "/auth/login", "/auth/register", "/auth/logout"];
+
+function isRefreshable(path: string): boolean {
+  const p = path.startsWith("/") ? path : `/${path}`;
+  return !NO_REFRESH_PATHS.some((auth) => p === auth || p.startsWith(`${auth}?`));
+}
+
+// A single in-flight refresh shared across callers: when the access token
+// expires, a burst of requests (e.g. the notification poll + dashboard queries)
+// all 401 at once — we want exactly one /auth/refresh, then each retries once.
+let refreshPromise: Promise<boolean> | null = null;
+
+function refreshSession(): Promise<boolean> {
+  refreshPromise ??= (async () => {
+    try {
+      const res = await fetch(toApiUrl("/auth/refresh"), {
+        method: "POST",
+        credentials: "include",
+      });
+      return res.ok;
+    } catch {
+      return false;
+    }
+  })().finally(() => {
+    refreshPromise = null;
+  });
+  return refreshPromise;
+}
+
+async function rawFetch(path: string, options: ApiClientOptions): Promise<Response> {
   const { body, headers, ...init } = options;
   const requestHeaders = new Headers(headers);
   let requestBody: BodyInit | undefined;
@@ -39,12 +68,27 @@ export async function apiClient<TResponse>(
     requestBody = JSON.stringify(body);
   }
 
-  const response = await fetch(toApiUrl(path), {
+  return fetch(toApiUrl(path), {
     ...init,
     headers: requestHeaders,
     body: requestBody,
     credentials: "include",
   });
+}
+
+export async function apiClient<TResponse>(
+  path: string,
+  options: ApiClientOptions = {},
+): Promise<TResponse> {
+  let response = await rawFetch(path, options);
+
+  // Access token likely expired: refresh once (shared) and retry the request.
+  if (response.status === 401 && isRefreshable(path)) {
+    const refreshed = await refreshSession();
+    if (refreshed) {
+      response = await rawFetch(path, options);
+    }
+  }
 
   const payload = await parseResponse(response);
   if (!response.ok) {

@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
 import type { AnomaliesResult } from "./notification.types";
 
-const POLL_INTERVAL_MS = 30_000; // poll every 30 seconds
+const POLL_INTERVAL_MS = 60_000; // poll every 60 seconds
 
 export const notificationKeys = {
   critical: () => ["anomalies", "critical"] as const,

@@ -67,4 +67,69 @@ describe("apiClient", () => {
       details: { fieldErrors: {} },
     });
   });
+
+  it("refreshes once on a 401 and retries the original request", async () => {
+    const calls: string[] = [];
+    const fetchMock = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+      const url = String(input);
+      calls.push(`${init?.method ?? "GET"} ${url}`);
+      if (url.endsWith("/auth/refresh")) {
+        return new Response(null, { status: 200 });
+      }
+      // First protected call 401s; after refresh, the retry succeeds.
+      const priorRefresh = calls.some((c) => c.includes("/auth/refresh"));
+      return new Response(JSON.stringify({ ok: priorRefresh }), {
+        status: priorRefresh ? 200 : 401,
+        headers: { "Content-Type": "application/json" },
+      });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(apiClient<{ ok: boolean }>("/anomalies")).resolves.toEqual({ ok: true });
+
+    expect(calls).toEqual([
+      "GET /api/anomalies",
+      "POST /api/auth/refresh",
+      "GET /api/anomalies",
+    ]);
+  });
+
+  it("shares a single refresh across a burst of simultaneous 401s", async () => {
+    let refreshCount = 0;
+    const fetchMock = vi.fn(async (input: string | URL | Request) => {
+      const url = String(input);
+      if (url.endsWith("/auth/refresh")) {
+        refreshCount += 1;
+        return new Response(null, { status: 200 });
+      }
+      // 401 until at least one refresh has completed.
+      return new Response(JSON.stringify({ ok: refreshCount > 0 }), {
+        status: refreshCount > 0 ? 200 : 401,
+        headers: { "Content-Type": "application/json" },
+      });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await Promise.all([
+      apiClient("/anomalies"),
+      apiClient("/budgets"),
+      apiClient("/summary"),
+    ]);
+
+    expect(refreshCount).toBe(1);
+  });
+
+  it("does not refresh-retry a 401 from the login endpoint", async () => {
+    const fetchMock = vi.fn(async () =>
+      new Response(
+        JSON.stringify({ error: { code: "INVALID_CREDENTIALS", message: "nope" } }),
+        { status: 401, headers: { "Content-Type": "application/json" } },
+      ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await apiClient("/auth/login", { method: "POST", body: {} }).catch(() => undefined);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1); // no /auth/refresh attempt
+  });
 });
