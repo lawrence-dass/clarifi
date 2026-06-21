@@ -1,6 +1,6 @@
 ---
 risk_tier: 2
-baseline_commit: 55754af
+baseline_commit: 9345d5b
 context:
   - _bmad-output/planning-artifacts/epics/epic-11-ux-refinement.md#Story 11.2
   - docs/design-reference.md

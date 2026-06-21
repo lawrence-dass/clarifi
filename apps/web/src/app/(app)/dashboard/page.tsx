@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { AnomalyInsightsSection } from "@/features/dashboard/anomaly-insights-section";
 import { BudgetsSection } from "@/features/dashboard/budgets-section";
 import { CashFlowSummarySection } from "@/features/dashboard/cash-flow-summary-section";
 import { CategoryBreakdownSection } from "@/features/dashboard/category-breakdown-section";
@@ -68,6 +69,8 @@ export default function DashboardPage() {
           ) : null}
         </div>
       </section>
+
+      <AnomalyInsightsSection />
 
       <div className="grid gap-6 xl:grid-cols-2">
         <CategoryBreakdownSection month={month} currency={selectedCurrency} />

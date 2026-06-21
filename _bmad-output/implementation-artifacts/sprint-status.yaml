@@ -134,7 +134,7 @@ development_status:
   # Epic 11: UX Refinement
   epic-11: in-progress
   11-1-navigation-information-architecture-restructure: done
-  11-2-anomaly-insights-dashboard-card-and-triage-page: ready-for-dev
+  11-2-anomaly-insights-dashboard-card-and-triage-page: in-progress
   11-3-visual-polish-pass: backlog
   epic-11-retrospective: optional
 

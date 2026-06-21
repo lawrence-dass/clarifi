@@ -4,38 +4,14 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ErrorState } from "@/components/error-state";
 import { Loading } from "@/components/loading";
-import { formatMoney } from "@/lib/format-money";
 import type { NotificationAnomaly } from "@/features/notifications/notification.types";
+import {
+  anomalySummary,
+  formatAmount,
+  severityBorderClass,
+  severityTone,
+} from "./anomaly-presentation";
 import { useAnomalies, useDismissAnomaly, useReportAnomaly } from "./anomaly.hooks";
-
-function severityTone(severity: NotificationAnomaly["severity"]) {
-  if (severity === "critical") return "danger" as const;
-  if (severity === "warning") return "warning" as const;
-  return "info" as const;
-}
-
-function severityBorderClass(severity: NotificationAnomaly["severity"]) {
-  if (severity === "critical") return "border-l-danger";
-  if (severity === "warning") return "border-l-warning";
-  return "border-l-info";
-}
-
-// Anomalies are shown as a magnitude (e.g. "a $120.00 charge"); format via the
-// shared display formatter so locale/currency match the rest of the app.
-function formatAmount(cents: number, currency: string): string {
-  return formatMoney(Math.abs(cents), currency);
-}
-
-function anomalySummary(anomaly: NotificationAnomaly): string {
-  if (anomaly.explanation) return anomaly.explanation;
-  const merchant = anomaly.transaction.merchantName ?? "Unknown merchant";
-  const amount = formatAmount(anomaly.transaction.amountCents, anomaly.transaction.currency);
-  switch (anomaly.type) {
-    case "velocity": return `Repeated charges at ${merchant}`;
-    case "merchant": return `New merchant: ${merchant} (${amount})`;
-    default: return `Unusual ${amount} charge at ${merchant}`;
-  }
-}
 
 function AnomalyRow({ anomaly }: { anomaly: NotificationAnomaly }) {
   const dismiss = useDismissAnomaly();
