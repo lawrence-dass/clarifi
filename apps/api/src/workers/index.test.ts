@@ -14,6 +14,7 @@ const mocks = vi.hoisted(() => {
     createDigestWorker: vi.fn(() => fakeWorker("digest")),
     startCategorizeOutboxDrainer: vi.fn(() => vi.fn()),
     startPlaidSyncOutboxDrainer: vi.fn(() => vi.fn()),
+    startCategorizeReconciler: vi.fn(() => vi.fn()),
   };
 });
 
@@ -29,6 +30,9 @@ vi.mock("../queues/categorize.outbox.js", () => ({
 vi.mock("../queues/plaid-sync.outbox.js", () => ({
   startPlaidSyncOutboxDrainer: mocks.startPlaidSyncOutboxDrainer,
 }));
+vi.mock("../queues/categorize.reconcile.js", () => ({
+  startCategorizeReconciler: mocks.startCategorizeReconciler,
+}));
 
 import { startWorkers } from "./index.js";
 
@@ -42,6 +46,8 @@ describe("startWorkers", () => {
     expect(mocks.createAnomalyExplainWorker).toHaveBeenCalledOnce();
     expect(mocks.createPlaidSyncWorker).toHaveBeenCalledOnce();
     expect(mocks.createDigestWorker).toHaveBeenCalledOnce();
+    // Durability backstop (story 10.1) starts alongside the drainers.
+    expect(mocks.startCategorizeReconciler).toHaveBeenCalledOnce();
 
     await runtime.close();
   });

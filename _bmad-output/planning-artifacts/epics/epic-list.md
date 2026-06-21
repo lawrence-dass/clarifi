@@ -35,3 +35,7 @@ Users stay informed (anomaly/budget alerts, weekly digest); the system is observ
 ## Epic 9: UI Redesign
 Refresh the web UI onto a cohesive, bank-grade design system (shared tokens + primitives, then a screen-by-screen rollout). Presentational only.
 **FRs covered:** none new (UX refresh of FR13–FR31 surfaces)
+
+## Epic 10: Reliability & Hardening
+Post-feature reliability pass — durable categorization recovery, bounded worker transactions, graceful LLM degradation, and assorted hardening found running the app end to end.
+**FRs covered:** none new (hardening of existing FRs)

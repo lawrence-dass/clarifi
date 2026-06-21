@@ -121,3 +121,9 @@ development_status:
   9-9-consents-dashboard-restyle: done
   9-10-account-settings-restyle: done
   epic-9-retrospective: optional
+
+  # Epic 10: Reliability & Hardening
+  epic-10: in-progress
+  10-1-durable-categorization-recovery: in-progress
+  10-2-bound-categorize-transaction: backlog
+  epic-10-retrospective: optional

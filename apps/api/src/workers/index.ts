@@ -1,5 +1,6 @@
 import type { Worker } from "bullmq";
 import { startCategorizeOutboxDrainer } from "../queues/categorize.outbox.js";
+import { startCategorizeReconciler } from "../queues/categorize.reconcile.js";
 import { startPlaidSyncOutboxDrainer } from "../queues/plaid-sync.outbox.js";
 import { createAnomalyExplainWorker } from "./anomaly-explain.worker.js";
 import { createCategorizeWorker } from "./categorize.worker.js";
@@ -30,10 +31,14 @@ export function startWorkers(): StartedWorkers {
 
   const stopCategorizeDrainer = startCategorizeOutboxDrainer();
   const stopPlaidSyncDrainer = startPlaidSyncOutboxDrainer();
+  // Durability backstop: re-enqueue categorization for transactions the fast
+  // path left stuck at category = null (story 10.1).
+  const stopCategorizeReconciler = startCategorizeReconciler();
   return {
     async close() {
       stopCategorizeDrainer();
       stopPlaidSyncDrainer();
+      stopCategorizeReconciler();
       await Promise.all(workers.map((worker) => worker.close()));
     },
   };
