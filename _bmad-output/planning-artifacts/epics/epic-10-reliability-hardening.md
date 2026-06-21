@@ -57,11 +57,14 @@ a bound. The real fix is to do less per transaction.
 transaction) so each transaction stays well within budget
 **And** no batch fails with P2028, and per-row failures don't roll back the batch.
 
+## Story 10.3: NL-query graceful degradation (done)
+
+The `/query/nl` route returned a raw 500 when the LLM was unavailable; now returns
+a 503 `LLM_UNAVAILABLE` with a friendly message (mirrors the anomaly-explain
+templated fallback). See `10-3-nl-query-graceful-degradation.md`.
+
 ## Backlog (smaller hardening items — promote to stories when picked up)
 
-- **NL-query graceful degradation:** the `/query/nl` route returns a raw 500 when
-  the LLM is unavailable; return a 503 + friendly "assistant unavailable" message
-  (mirrors the anomaly-explain templated fallback).
 - **"merchant cache unavailable" degradation:** the Redis-backed merchant cache
   logs unavailable even with Redis connected — investigate the cache connection;
   it's non-fatal (falls back to LLM) but shouldn't be down.

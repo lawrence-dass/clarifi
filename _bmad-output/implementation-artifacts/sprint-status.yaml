@@ -126,4 +126,5 @@ development_status:
   epic-10: in-progress
   10-1-durable-categorization-recovery: done
   10-2-bound-categorize-transaction: backlog
+  10-3-nl-query-graceful-degradation: done
   epic-10-retrospective: optional

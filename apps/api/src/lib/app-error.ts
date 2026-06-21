@@ -32,3 +32,7 @@ export function notFound(code: string, message: string, details?: unknown): AppE
 export function unauthorized(code: string, message: string, details?: unknown): AppError {
   return new AppError(code, 401, message, details);
 }
+
+export function serviceUnavailable(code: string, message: string, details?: unknown): AppError {
+  return new AppError(code, 503, message, details);
+}
