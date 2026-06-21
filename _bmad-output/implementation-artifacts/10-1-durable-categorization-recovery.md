@@ -12,7 +12,7 @@ context:
 
 # Story 10.1: Durable categorization recovery
 
-Status: in-progress
+Status: done
 
 ## Story
 
@@ -65,7 +65,7 @@ so the grouped scan needs no Account join.
 - [x] Skip when `redisConfigError(config.REDIS_URL)` is set (don't enqueue into a dead Redis).
 - [x] Wire start/stop into `workers/index.ts` alongside the outbox drainers.
 - [x] Unit test (`categorize.reconcile.test.ts`): re-enqueue per stuck account + correct WHERE (category null / not removed / grace<maxAge bounds); Redis-down → no scan/enqueue; custom windows honoured. `index.test.ts` updated to assert the reconciler starts.
-- [ ] `pnpm verify:story` green; tripwire review (outbox/worker/RLS surface).
+- [x] `pnpm verify:story` green (0 skips); tripwire reviewed — base-client read only, all writes stay in the RLS-protected job.
 
 ## Completion Notes
 

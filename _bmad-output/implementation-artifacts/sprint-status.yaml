@@ -124,6 +124,6 @@ development_status:
 
   # Epic 10: Reliability & Hardening
   epic-10: in-progress
-  10-1-durable-categorization-recovery: in-progress
+  10-1-durable-categorization-recovery: done
   10-2-bound-categorize-transaction: backlog
   epic-10-retrospective: optional
