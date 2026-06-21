@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { randomUUID } from "node:crypto";
 import { prisma } from "@clarifi/shared";
 import {
@@ -18,6 +18,12 @@ const dbUrl = process.env.DATABASE_URL ?? "";
 const hasDb = dbUrl.length > 0 && !dbUrl.includes("placeholder");
 
 describe.skipIf(!hasDb)("categorize outbox", () => {
+  // Clean both before and after: these assert exact outbox-row counts, so the
+  // table must be free of rows left by prior runs or real app/script usage
+  // (the same DB is shared), not just cleaned up afterward.
+  beforeEach(async () => {
+    await prisma.outbox.deleteMany({ where: { eventType: CATEGORIZE_REQUESTED_EVENT } });
+  });
   afterEach(async () => {
     await prisma.outbox.deleteMany({ where: { eventType: CATEGORIZE_REQUESTED_EVENT } });
     mockedEnqueue.mockReset();
