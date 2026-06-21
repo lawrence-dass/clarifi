@@ -39,6 +39,10 @@ const UUID_RE =
 export async function withUserContext<T>(
   userId: string,
   fn: (tx: Prisma.TransactionClient) => Promise<T>,
+  // Optional interactive-transaction options forwarded to Prisma. Omitted =
+  // Prisma's defaults (5s timeout). Batch writers against a remote DB (e.g. the
+  // categorize worker) raise `timeout` so a full batch fits in one transaction.
+  options?: { timeout?: number; maxWait?: number },
 ): Promise<T> {
   // Fail loud on a missing/invalid user id. Without this guard an empty or
   // malformed value would silently produce a context that matches no rows
@@ -58,7 +62,7 @@ export async function withUserContext<T>(
     // set_config(name, value, is_local=true) — parameterized, scoped to this tx.
     await tx.$executeRaw`SELECT set_config('app.current_user_id', ${userId}, true)`;
     return fn(tx);
-  });
+  }, options);
 }
 
 /**

@@ -45,6 +45,11 @@ export interface CategorizationJudge {
 const defaultGateway: CategorizationGateway = { categorizeBatch };
 const defaultJudge: CategorizationJudge = { judgeCategorizations };
 
+// A batch applies up to CATEGORIZE_BATCH_SIZE rows' worth of writes plus anomaly
+// baseline reads in one RLS transaction. Against a remote DB those round-trips
+// add up past Prisma's 5s interactive-transaction default, so raise it.
+const BATCH_TX_OPTIONS = { timeout: 30_000, maxWait: 10_000 } as const;
+
 export async function processCategorizeJob(
   data: CategorizeJobData,
   options: {
@@ -119,7 +124,7 @@ export async function processCategorizeJob(
             occurredAt: transaction.date,
           }, tx);
         }
-      });
+      }, BATCH_TX_OPTIONS);
     }
 
     if (cacheMisses.length === 0) continue;
@@ -201,7 +206,7 @@ export async function processCategorizeJob(
           });
         }
       }
-    });
+    }, BATCH_TX_OPTIONS);
 
     for (const cacheWrite of cacheWrites) {
       await safeSetCachedMerchant(merchantCache, cacheWrite);
