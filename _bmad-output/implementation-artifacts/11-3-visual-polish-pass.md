@@ -14,7 +14,7 @@ context:
 
 # Story 11.3: Visual polish pass — crisp enterprise styling
 
-Status: ready-for-dev
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -47,12 +47,13 @@ Decision (Lawrence, 2026-06-21): go to the **"Crisp ~3px"** option — cards/but
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Tighten the radius token scale (AC: #1, #2)
-  - [ ] In `tailwind.config.ts` `borderRadius`: set `sm: "3px"`, `DEFAULT: "4px"`, `md: "4px"`, `lg: "6px"`. Touch nothing else in the config.
-- [ ] Task 2: Audit primitives at the new radius (AC: #3, #4)
-  - [ ] Visually/structurally confirm `Button`, `Card`, `Input`, `Modal`, `Badge`, KPI tiles read crisp and unclipped; confirm `rounded-full` elements stay circular. No component edits unless a corner is visibly broken (flag if so).
-- [ ] Task 3: Verify (AC: #5)
-  - [ ] Run `pnpm verify:story:web` (exit 0). Do a manual visual pass (run the app, or compare a dashboard/auth screenshot to `docs/screenshots/`) and record it in Completion Notes.
+- [x] Task 1: Tighten the radius token scale (AC: #1, #2)
+  - [x] `tailwind.config.ts` `borderRadius`: `sm: "3px"`, `DEFAULT: "4px"`, `md: "4px"`, `lg: "6px"`. Nothing else in the config changed.
+- [x] Task 2: Audit primitives at the new radius (AC: #3, #4)
+  - [x] Static audit: radius usage is 100% token-based (no hardcoded `rounded-[Npx]`), so `Button`/`Card`/`Input`/`Modal`/`Badge`/KPI tiles inherit 4px and `rounded-full` (avatars, badges, dots) is untouched. No component edits needed.
+- [~] Task 3: Verify (AC: #5)
+  - [x] `pnpm verify:story:web` exit 0 (the production build compiled the new tokens).
+  - [ ] **Live visual confirmation pending** — handed to the user (a dev server is already up on :3000; a Tailwind-config change needs a restart to reload). See Completion Notes.
 
 ## Dev Notes
 
@@ -128,14 +129,25 @@ review runs three lenses — Blind Hunter (context-free bugs), Edge Case Hunter
 ## Dev Agent Record
 
 ### Agent Model Used
-_TBD_
+Claude Opus 4.8 (claude-opus-4-8) via bmad-dev-story
 
 ### Completion Notes List
-_TBD_
+
+Single token-layer change; presentational/web-only, no guardrail surface.
+
+**AC → evidence:**
+- **AC #1** (exact token values) → `tailwind.config.ts` `borderRadius` now `sm 3px / DEFAULT 4px / md 4px / lg 6px`; no other token touched (diff is the borderRadius block only).
+- **AC #2** (propagation, `rounded-full` untouched) → pre-change audit found radius usage entirely token-based (23 `rounded`, 9 `rounded-sm`, 7 `rounded-md`, 7 `rounded-full`; **no** hardcoded `rounded-[Npx]`). The scale edit therefore sharpens all 39 non-circular surfaces; the 7 `rounded-full` (avatars, badges, status dots) are unaffected and stay circular.
+- **AC #3/#4** (primitives crisp, no behaviour/layout regression) → zero component edits; `Button`/`Card`/`Input`/`Modal`/`Badge`/KPI tiles inherit the new radius via tokens. Solid-blue primary / outline-secondary and KPI metric-with-delta were already correct (unchanged).
+- **AC #5** (gate + visual) → `pnpm verify:story:web` **exit 0** (web typecheck ✓, web tests ✓ zero skips, Next/Tailwind production build ✓ — the build is the load-bearing check that the new tokens compile). **Live visual confirmation across screens is still pending and handed to the user** — I did not claim a visual pass I couldn't cleanly guarantee (the running :3000 dev server predates this change and a Tailwind-config edit needs a server restart to reload). Recommend: restart the web dev server and eyeball `/sign-in` + `/dashboard` against `docs/screenshots/`, or run the `verify` skill.
+
+**Guardrail tripwire (Tier 2):** `git diff --name-only` = `apps/web/tailwind.config.ts` + `_bmad-output/**` only. Zero `apps/api`/`packages/shared`/`prisma`/money/RLS/gateway touch. No monetary code.
 
 ### File List
-_TBD_
+
+- `apps/web/tailwind.config.ts` (modified) — `borderRadius` scale tightened (sm 3 / DEFAULT 4 / md 4 / lg 6).
 
 ## Change Log
 
-- 2026-06-21: Story created (ready-for-dev), final story of Epic 11. Token-layer radius tightening (Crisp ~3px: cards/buttons 6→4px, inputs 4→3px) to close the residual softness vs the reference screenshots; everything else in the Epic 9 token system already matches. Presentational/web-only, no guardrail surface. Not implemented.
+- 2026-06-21: Story created (ready-for-dev), final story of Epic 11. Token-layer radius tightening (Crisp ~3px: cards/buttons 6→4px, inputs 4→3px) to close the residual softness vs the reference screenshots; everything else in the Epic 9 token system already matches. Presentational/web-only, no guardrail surface.
+- 2026-06-21: Implemented via bmad-dev-story on branch `story/11-3-visual-polish` (baseline `cdb6ecb`). Single-token-scale change; `pnpm verify:story:web` exit 0. Status → review; live visual sign-off (AC #5) pending with the user.
