@@ -74,7 +74,9 @@ export default function DashboardPage() {
         <SpendingTrendSection endMonth={month} currency={selectedCurrency} />
       </div>
       <CashFlowSummarySection month={month} currency={selectedCurrency} />
-      <BudgetsSection month={month} />
+      <section id="budgets" className="scroll-mt-24">
+        <BudgetsSection month={month} />
+      </section>
     </div>
   );
 }
