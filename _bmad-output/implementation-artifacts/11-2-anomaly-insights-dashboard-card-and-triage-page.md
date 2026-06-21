@@ -17,7 +17,7 @@ context:
 
 # Story 11.2: Anomaly insights — dashboard card + dedicated triage page
 
-Status: ready-for-dev
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -46,16 +46,16 @@ card is read-only — it surfaces existing data; it does not dismiss, report, or
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Build the anomaly-insights card (AC: #1, #2, #4, #6)
-  - [ ] New `apps/web/src/features/dashboard/anomaly-insights-section.tsx` (mirrors the other `*-section.tsx` files): consume `useCriticalAnomalies()`, render up to ~3 rows + a count summary inside `SectionFrame`. Reuse `Badge`/severity tone and `formatMoney`; do **not** render dismiss/report controls.
-- [ ] Task 2: Wire the "View all" link (AC: #3)
-  - [ ] Pass a `footer` with `Link href="/anomalies"` ("View all anomalies →") to `SectionFrame`.
-- [ ] Task 3: Place the card on the dashboard (AC: #1)
-  - [ ] Add the section to `apps/web/src/app/(app)/dashboard/page.tsx` in a sensible position (e.g. near the top or after the category/trend grid). Keep the existing sections, `#budgets` anchor, month/currency controls untouched.
-- [ ] Task 4: Confirm the triage page is untouched (AC: #5)
-  - [ ] No edits to `/anomalies/page.tsx`, `anomaly-feed.tsx`, or `anomaly.hooks.ts` beyond (optionally) extracting a shared severity/summary helper — see reuse note. Behaviour identical.
-- [ ] Task 5: Test + verify (AC: #7)
-  - [ ] Add a card test (mock `useCriticalAnomalies`): asserts rows + count + the `/anomalies` link render, and the empty state. Run `pnpm verify:story:web` (exit 0). Optionally drive via `run`/`verify` (dashboard shows the card → click through to `/anomalies`).
+- [x] Task 1: Build the anomaly-insights card (AC: #1, #2, #4, #6)
+  - [x] New `apps/web/src/features/dashboard/anomaly-insights-section.tsx`: consumes `useCriticalAnomalies()`, renders a critical count + up to 3 rows inside `SectionFrame`. Reuses `Badge`/severity tone + the shared `formatAmount`; renders **no** dismiss/report controls.
+- [x] Task 2: Wire the "View all" link (AC: #3)
+  - [x] `SectionFrame` `footer` carries `Link href="/anomalies"` ("View all anomalies →").
+- [x] Task 3: Place the card on the dashboard (AC: #1)
+  - [x] Added `<AnomalyInsightsSection />` near the top of `dashboard/page.tsx` (above the chart grid). Existing sections, `#budgets` anchor, and month/currency controls untouched.
+- [x] Task 4: Confirm the triage page is untouched (AC: #5)
+  - [x] `/anomalies/page.tsx` and `anomaly.hooks.ts` unchanged. `anomaly-feed.tsx` edited only to import the extracted helpers (`anomaly-presentation.ts`) — pure refactor, rendering identical.
+- [x] Task 5: Test + verify (AC: #7)
+  - [x] Added `anomaly-insights-section.test.tsx` (3 tests: rows + count + link, 3-row cap, empty state). `pnpm verify:story:web` exit 0.
 
 ## Dev Notes
 
@@ -155,14 +155,36 @@ review runs three lenses — Blind Hunter (context-free bugs), Edge Case Hunter
 ## Dev Agent Record
 
 ### Agent Model Used
-_TBD_
+Claude Opus 4.8 (claude-opus-4-8) via bmad-dev-story
 
 ### Completion Notes List
-_TBD_
+
+Read-only dashboard summary card; presentational/web-only, no guardrail surface, no new endpoint.
+
+**AC → evidence mapping:**
+- **AC #1** (card on `/dashboard`, `SectionFrame`, recent criticals + count/severity) → `anomaly-insights-section.test.tsx`: "renders the critical count, preview rows, and a link to /anomalies". Placed in `dashboard/page.tsx` above the chart grid.
+- **AC #2** (reuses `useCriticalAnomalies`, no new fetch, no LLM on render) → card calls the existing notifications hook (query key `["anomalies","critical"]`), sharing the bell's cache; no new query/endpoint; nothing triggers detection/explanation. Confirmed by `git diff` (no hook/endpoint added).
+- **AC #3** (links to `/anomalies`) → "…a link to /anomalies" assertion (href `/anomalies`).
+- **AC #4** (empty + loading via `SectionFrame`) → "shows a calm empty state…" test; loading/error delegated to `SectionFrame`.
+- **AC #5** (triage page unchanged) → `/anomalies/page.tsx` + `anomaly.hooks.ts` not in diff; `anomaly-feed.tsx` changed only to import the extracted helpers (behaviour-identical refactor) — full web suite (incl. feed coverage) green.
+- **AC #6** (money display-only, per-currency) → amounts via shared `formatAmount` (`Math.abs` + `formatMoney`); the count is a row count, never a summed amount; no cross-currency arithmetic.
+- **AC #7** (gate) → `pnpm verify:story:web` exit **0**: web typecheck ✓, web tests ✓ (zero skips), build ✓.
+
+**Reuse-first:** extracted `severityTone`/`severityBorderClass`/`formatAmount`/`anomalySummary` into `features/anomaly/anomaly-presentation.ts`; both `AnomalyFeed` and the new card import them (no duplicated summary logic, no second anomalies query).
+
+**Guardrail tripwire (Tier 2):** diff within `apps/web/src/**` + `_bmad-output/**`. No `apps/api`, `packages/shared`, `prisma/`, money/`_cents` arithmetic, RLS, gateway, idempotency, or outbox touch. (Tripwire list also shows 11.1 files because the branch is stacked and the scope guard diffs vs `origin/main`.)
+
+**Edge paths verified:** empty critical list → calm empty state + the "View all" link still offered; `amountCents === 0` row hides the amount line; null `merchantName` omitted (no crash); >3 criticals → count reflects all, only 3 preview rows render (test); per-row currency formatted independently.
 
 ### File List
-_TBD_
+
+- `apps/web/src/features/dashboard/anomaly-insights-section.tsx` (new) — read-only critical-anomaly summary card.
+- `apps/web/src/features/dashboard/anomaly-insights-section.test.tsx` (new) — 3 tests.
+- `apps/web/src/features/anomaly/anomaly-presentation.ts` (new) — shared severity/summary helpers.
+- `apps/web/src/features/anomaly/anomaly-feed.tsx` (modified) — imports the extracted helpers (no behaviour change).
+- `apps/web/src/app/(app)/dashboard/page.tsx` (modified) — renders `<AnomalyInsightsSection />`.
 
 ## Change Log
 
-- 2026-06-21: Story created (ready-for-dev), second story of Epic 11. Scope is a read-only "Anomaly insights" dashboard card reusing `useCriticalAnomalies` + `SectionFrame`, linking to the unchanged `/anomalies` triage page. Presentational/web-only, no guardrail surface, no new endpoint, no behaviour change. Not implemented.
+- 2026-06-21: Story created (ready-for-dev), second story of Epic 11. Read-only "Anomaly insights" dashboard card reusing `useCriticalAnomalies` + `SectionFrame`, linking to the unchanged `/anomalies` triage page. Presentational/web-only, no guardrail surface, no new endpoint, no behaviour change.
+- 2026-06-21: Implemented via bmad-dev-story on branch `story/11-2-anomaly-insights` (stacked on 11.1, baseline `9345d5b`). All 5 tasks complete; helpers extracted for reuse; `pnpm verify:story:web` exit 0; status → review.
