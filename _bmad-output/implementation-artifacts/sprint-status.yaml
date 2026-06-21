@@ -128,4 +128,5 @@ development_status:
   10-2-bound-categorize-transaction: done
   10-3-nl-query-graceful-degradation: done
   10-4-isolated-test-db: done
+  10-5-backlog-polish: done
   epic-10-retrospective: optional

@@ -70,12 +70,8 @@ assert on (its drainers mutate outbox rows mid-test). Added `TEST_DATABASE_URL`
 to redirect the suite to an isolated DB + hardened the exact-count outbox/webhook
 tests. See `10-4-isolated-test-db.md`.
 
-## Backlog (smaller hardening items — promote to stories when picked up)
+## Story 10.5: Backlog polish (done)
 
-- **"merchant cache unavailable" degradation:** the Redis-backed merchant cache
-  logs unavailable even with Redis connected — investigate the cache connection;
-  it's non-fatal (falls back to LLM) but shouldn't be down.
-- **Off-token error UI:** `error-state.tsx` still uses raw `red-*` Tailwind classes
-  — migrate to the `danger` design token (Epic 9 leftover).
-- **Reuse shared money formatter:** `anomaly-feed.tsx` hand-rolls `formatAmount`
-  instead of `@/lib/format-money`.
+Merchant-cache cold-start timeout (1s→3s for remote Upstash), off-token error UI
+(`error-state.tsx` → `danger` token), and shared money-formatter reuse
+(`anomaly-feed.tsx`). See `10-5-backlog-polish.md`.

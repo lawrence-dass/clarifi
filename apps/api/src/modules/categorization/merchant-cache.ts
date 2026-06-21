@@ -63,10 +63,15 @@ function getRedis(): Redis {
   }
   // Fail fast so a Redis outage degrades to the LLM path instead of hanging the
   // worker: don't queue commands while offline, and time out any single command.
+  // The timeout must still cover the FIRST command's connect + TLS handshake to a
+  // remote provider (e.g. Upstash) — 1s was too tight and made every cold worker
+  // spuriously "degrade to LLM"; 3s tolerates that while still failing fast on a
+  // real outage.
   return (redis ??= new Redis(config.REDIS_URL, {
     maxRetriesPerRequest: 1,
     enableOfflineQueue: false,
-    commandTimeout: 1_000,
+    commandTimeout: 3_000,
+    connectTimeout: 5_000,
   }));
 }
 
