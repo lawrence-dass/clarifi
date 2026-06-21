@@ -17,7 +17,7 @@ context:
 
 # Story 11.2: Anomaly insights — dashboard card + dedicated triage page
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -56,6 +56,13 @@ card is read-only — it surfaces existing data; it does not dismiss, report, or
   - [x] `/anomalies/page.tsx` and `anomaly.hooks.ts` unchanged. `anomaly-feed.tsx` edited only to import the extracted helpers (`anomaly-presentation.ts`) — pure refactor, rendering identical.
 - [x] Task 5: Test + verify (AC: #7)
   - [x] Added `anomaly-insights-section.test.tsx` (3 tests: rows + count + link, 3-row cap, empty state). `pnpm verify:story:web` exit 0.
+
+### Review Findings
+
+_From bmad-code-review (2026-06-21, baseline `9345d5b`, isolated 11.2 diff). Three lenses applied inline. No High/Medium; all ACs satisfied; feed refactor behaviour-identical; tripwire clean._
+
+- [x] [Review][Patch] Singular subject-verb disagreement in the count line: when `count === 1` it read "1 critical anomaly **need** a look" — should be "needs" [apps/web/src/features/dashboard/anomaly-insights-section.tsx] — fixed: "anomaly needs" / "anomalies need" (2026-06-21)
+- [x] [Review][Defer] The count reflects `useCriticalAnomalies`'s capped result (`limit=10`), so with >10 criticals the summary under-reports the true total. Showing the real total would require a count from the API — a new fetch that AC #2 deliberately forbids. Acceptable for a glanceable card; revisit if/when the anomalies endpoint returns a total. [apps/web/src/features/dashboard/anomaly-insights-section.tsx] — deferred, out of scope (no-new-fetch constraint)
 
 ## Dev Notes
 
@@ -188,3 +195,4 @@ Read-only dashboard summary card; presentational/web-only, no guardrail surface,
 
 - 2026-06-21: Story created (ready-for-dev), second story of Epic 11. Read-only "Anomaly insights" dashboard card reusing `useCriticalAnomalies` + `SectionFrame`, linking to the unchanged `/anomalies` triage page. Presentational/web-only, no guardrail surface, no new endpoint, no behaviour change.
 - 2026-06-21: Implemented via bmad-dev-story on branch `story/11-2-anomaly-insights` (stacked on 11.1, baseline `9345d5b`). All 5 tasks complete; helpers extracted for reuse; `pnpm verify:story:web` exit 0; status → review.
+- 2026-06-21: bmad-code-review (3 lenses, inline) — no High/Medium; 1 Low patch applied (count-line grammar), 1 Low defer logged (capped count). Typecheck + card tests green post-patch. Status → done.

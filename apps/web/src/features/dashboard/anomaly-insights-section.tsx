@@ -68,7 +68,7 @@ export function AnomalyInsightsSection() {
       <div className="space-y-3">
         <p className="text-sm text-text-muted">
           <span className="font-semibold text-text tabular-nums">{count}</span> critical
-          {count === 1 ? " anomaly" : " anomalies"} need a look.
+          {count === 1 ? " anomaly needs" : " anomalies need"} a look.
         </p>
         <ul className="space-y-3">
           {anomalies.slice(0, PREVIEW_COUNT).map((anomaly) => (

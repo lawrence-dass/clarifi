@@ -1,5 +1,9 @@
 # Deferred Work
 
+## Deferred from: code review of story-11.2 (2026-06-21)
+
+- **Anomaly insights card shows a capped count** — the dashboard card derives its critical count from `useCriticalAnomalies` (`/anomalies?severity=critical&limit=10`), so with more than 10 criticals it under-reports the true total. Surfacing the real total needs a count returned by the anomalies endpoint (a new query the story deliberately avoided). Revisit when the API exposes a total. [apps/web/src/features/dashboard/anomaly-insights-section.tsx]
+
 ## Deferred from: code review of story-11.1 (2026-06-21)
 
 - **Shared single-open-overlay state for header popovers** — the notification bell and the new user menu each render a full-viewport `fixed inset-0` dismiss layer, so switching directly from one open popover to the other costs an extra click. Low-severity UX; consistent with the existing bell idiom. Revisit by hoisting a single "which overlay is open" state into the shell. [apps/web/src/features/account/user-menu.tsx, apps/web/src/features/notifications/notification-bell.tsx]
