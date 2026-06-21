@@ -45,10 +45,21 @@ export interface CategorizationJudge {
 const defaultGateway: CategorizationGateway = { categorizeBatch };
 const defaultJudge: CategorizationJudge = { judgeCategorizations };
 
-// A batch applies up to CATEGORIZE_BATCH_SIZE rows' worth of writes plus anomaly
-// baseline reads in one RLS transaction. Against a remote DB those round-trips
-// add up past Prisma's 5s interactive-transaction default, so raise it.
-const BATCH_TX_OPTIONS = { timeout: 30_000, maxWait: 10_000 } as const;
+// Cap the work per transaction at a small, CONSTANT number of rows so a single
+// transaction never grows with the batch size — that unbounded growth was what
+// blew past Prisma's interactive-transaction timeout (P2028) on a remote DB.
+// Each chunk does a handful of writes + anomaly baseline reads, well within
+// budget; the timeout is only a safety net, not the mechanism. Chunking also
+// isolates failures — a bad chunk doesn't roll back already-committed ones, and
+// the job's `category: null` guard makes a retry skip what already landed.
+const TX_CHUNK_SIZE = 5;
+const CHUNK_TX_OPTIONS = { timeout: 15_000, maxWait: 5_000 } as const;
+
+function chunk<T>(items: T[], size: number): T[][] {
+  const groups: T[][] = [];
+  for (let i = 0; i < items.length; i += size) groups.push(items.slice(i, i + size));
+  return groups;
+}
 
 export async function processCategorizeJob(
   data: CategorizeJobData,
@@ -98,9 +109,9 @@ export async function processCategorizeJob(
     const cacheMisses = candidates.filter((candidate) => !candidate.cached);
 
     const now = new Date();
-    if (cacheHits.length > 0) {
+    for (const group of chunk(cacheHits, TX_CHUNK_SIZE)) {
       await withUserContext(data.userId, async (tx) => {
-        for (const transaction of cacheHits) {
+        for (const transaction of group) {
           await tx.transaction.updateMany({
             where: {
               id: transaction.id,
@@ -124,7 +135,7 @@ export async function processCategorizeJob(
             occurredAt: transaction.date,
           }, tx);
         }
-      }, BATCH_TX_OPTIONS);
+      }, CHUNK_TX_OPTIONS);
     }
 
     if (cacheMisses.length === 0) continue;
@@ -163,50 +174,52 @@ export async function processCategorizeJob(
       category: Category;
       confidence: number;
     }> = [];
-    await withUserContext(data.userId, async (tx) => {
-      for (const transaction of cacheMisses) {
-        const result = byId.get(transaction.id) ?? {
-          id: transaction.id,
-          category: Category.other,
-          confidence: 0,
-        };
-        await tx.transaction.updateMany({
-          where: {
+    for (const group of chunk(cacheMisses, TX_CHUNK_SIZE)) {
+      await withUserContext(data.userId, async (tx) => {
+        for (const transaction of group) {
+          const result = byId.get(transaction.id) ?? {
             id: transaction.id,
-            accountId: data.accountId,
-            category: null,
-          },
-          data: {
-            merchantName: transaction.merchantName,
-            category: result.category,
-            categorySource: CategorySource.llm,
-            categoryConfidence: result.confidence,
-            categorizedAt: now,
-          },
-        });
-        await safeDetectAndPersist({
-          transactionId: transaction.id,
-          userId: data.userId,
-          merchantName: transaction.merchantName,
-          category: result.category,
-          amountCents: transaction.amountCents,
-          occurredAt: transaction.date,
-        }, tx);
-        if (
-          transaction.merchantName &&
-          !fallbackUsed &&
-          !excludeFromCache.has(transaction.id) &&
-          isCacheableResult(result)
-        ) {
-          cacheWrites.push({
+            category: Category.other,
+            confidence: 0,
+          };
+          await tx.transaction.updateMany({
+            where: {
+              id: transaction.id,
+              accountId: data.accountId,
+              category: null,
+            },
+            data: {
+              merchantName: transaction.merchantName,
+              category: result.category,
+              categorySource: CategorySource.llm,
+              categoryConfidence: result.confidence,
+              categorizedAt: now,
+            },
+          });
+          await safeDetectAndPersist({
+            transactionId: transaction.id,
             userId: data.userId,
             merchantName: transaction.merchantName,
             category: result.category,
-            confidence: result.confidence,
-          });
+            amountCents: transaction.amountCents,
+            occurredAt: transaction.date,
+          }, tx);
+          if (
+            transaction.merchantName &&
+            !fallbackUsed &&
+            !excludeFromCache.has(transaction.id) &&
+            isCacheableResult(result)
+          ) {
+            cacheWrites.push({
+              userId: data.userId,
+              merchantName: transaction.merchantName,
+              category: result.category,
+              confidence: result.confidence,
+            });
+          }
         }
-      }
-    }, BATCH_TX_OPTIONS);
+      }, CHUNK_TX_OPTIONS);
+    }
 
     for (const cacheWrite of cacheWrites) {
       await safeSetCachedMerchant(merchantCache, cacheWrite);
