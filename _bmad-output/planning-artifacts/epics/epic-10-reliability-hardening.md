@@ -63,14 +63,15 @@ The `/query/nl` route returned a raw 500 when the LLM was unavailable; now retur
 a 503 `LLM_UNAVAILABLE` with a friendly message (mirrors the anomaly-explain
 templated fallback). See `10-3-nl-query-graceful-degradation.md`.
 
+## Story 10.4: Isolated test database (done)
+
+`verify:story` flaked when a worker ran against the same Supabase DB the tests
+assert on (its drainers mutate outbox rows mid-test). Added `TEST_DATABASE_URL`
+to redirect the suite to an isolated DB + hardened the exact-count outbox/webhook
+tests. See `10-4-isolated-test-db.md`.
+
 ## Backlog (smaller hardening items — promote to stories when picked up)
 
-- **Test isolation from a live worker / shared DB:** `verify:story` is flaky when a
-  worker process is running against the same Supabase DB the tests use — its
-  reconciler/outbox-drainer/categorize ticks mutate rows mid-test and intermittently
-  break count-based assertions. Tests should run against an isolated/ephemeral DB
-  (per `_bmad/handoff/mobile-workflow.md` Option A) with no concurrent worker, not
-  the shared dev DB. (Related: the earlier `db8143d` flaky-suite hardening.)
 - **"merchant cache unavailable" degradation:** the Redis-backed merchant cache
   logs unavailable even with Redis connected — investigate the cache connection;
   it's non-fatal (falls back to LLM) but shouldn't be down.

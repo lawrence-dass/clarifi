@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { prisma } from "@clarifi/shared";
 import {
   drainPlaidSyncOutbox,
@@ -17,6 +17,12 @@ const dbUrl = process.env.DATABASE_URL ?? "";
 const hasDb = dbUrl.length > 0 && !dbUrl.includes("placeholder");
 
 describe.skipIf(!hasDb)("plaid sync outbox", () => {
+  // Clean before and after: these assert exact outbox-row counts, so the table
+  // must be free of rows left by a prior run. (Run against an isolated DB —
+  // TEST_DATABASE_URL — so a live worker's drainer can't race these.)
+  beforeEach(async () => {
+    await prisma.outbox.deleteMany({ where: { eventType: PLAID_SYNC_REQUESTED_EVENT } });
+  });
   afterEach(async () => {
     await prisma.outbox.deleteMany({ where: { eventType: PLAID_SYNC_REQUESTED_EVENT } });
     mockedEnqueuePlaidSync.mockReset();

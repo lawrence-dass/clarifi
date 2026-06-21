@@ -1,4 +1,4 @@
-import { afterAll, afterEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import request from "supertest";
 import { prisma } from "@clarifi/shared";
 import { createApp } from "../../app.js";
@@ -24,6 +24,13 @@ function installVerifier(result: boolean): void {
     },
   });
 }
+
+// Clear PLAID_SYNC outbox rows before each test too: these assert exact counts,
+// so a row left by a prior run must not leak in. (Run against an isolated DB —
+// TEST_DATABASE_URL — so a live worker's drainer can't race these.)
+beforeEach(async () => {
+  if (hasDb) await prisma.outbox.deleteMany({ where: { eventType: PLAID_SYNC_REQUESTED_EVENT } });
+});
 
 afterEach(async () => {
   restoreVerifier?.();

@@ -6,6 +6,17 @@ import { defineConfig } from "vitest/config";
 // integration test) see DATABASE_URL. Pure-unit tests are unaffected.
 loadEnv({ path: path.resolve(import.meta.dirname, "../../.env") });
 
+// Prefer an ISOLATED test database when provided. DB-backed tests assert exact
+// row counts; running them against the shared dev DB makes them flaky whenever a
+// worker process is live (its outbox drainers / categorize jobs mutate rows
+// mid-test). Point TEST_DATABASE_URL at a throwaway local Postgres so the suite
+// never shares state with the dev DB or a running worker. Falls back to
+// DATABASE_URL when unset (existing behaviour). Set before any Prisma import.
+if (process.env.TEST_DATABASE_URL) {
+  process.env.DATABASE_URL = process.env.TEST_DATABASE_URL;
+  process.env.DIRECT_URL = process.env.TEST_DIRECT_URL ?? process.env.TEST_DATABASE_URL;
+}
+
 export default defineConfig({
   test: {
     // DB-touching tests share rows; run serially to avoid cross-test races.

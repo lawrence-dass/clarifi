@@ -74,6 +74,12 @@ pnpm --filter @clarifi/shared db:migrate
 Sanity check before coding: `pnpm verify:story` should run the full suite with **0 skipped**
 tests. If anything is skipped, the DB isn't wired — fix that before doing anything else.
 
+> **Isolation matters (story 10.4):** the suite asserts exact row counts, so it must run
+> against a database **no worker is mutating**. Either don't run a worker against the test DB,
+> or set **`TEST_DATABASE_URL`** (+ optional `TEST_DIRECT_URL`) to a throwaway local Postgres —
+> `vitest.config.ts` redirects the suite there, so a worker on the dev/Supabase DB can't race
+> the tests and make the gate flaky. Run migrations against that DB first.
+
 ---
 
 ## 0. Orient (cold start)
