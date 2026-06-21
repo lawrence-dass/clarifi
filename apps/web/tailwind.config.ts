@@ -47,10 +47,13 @@ export default {
         kpi: ["2rem", { lineHeight: "2.25rem", fontWeight: "700" }],
       },
       borderRadius: {
-        sm: "4px",
-        DEFAULT: "6px",
-        md: "6px",
-        lg: "8px",
+        // Tightened toward the near-rectangular reference (story 11.3): cards
+        // and buttons 6px → 4px, inputs (rounded-sm) 4px → 3px. rounded-full
+        // (avatars, badges, dots) is unaffected and stays circular.
+        sm: "3px",
+        DEFAULT: "4px",
+        md: "4px",
+        lg: "6px",
       },
       boxShadow: {
         card: "0 1px 2px rgba(28, 39, 60, 0.04)",
