@@ -117,6 +117,9 @@ describe("AppShell", () => {
 
     expect(screen.getByText("test@example.com")).toBeTruthy();
     expect(screen.getByRole("button", { name: /sign out/i })).toBeTruthy();
+
+    const profileLink = screen.getByRole("link", { name: /profile & settings/i });
+    expect(profileLink.getAttribute("href")).toBe("/dashboard/account");
   });
 
   it("renders children in main", () => {

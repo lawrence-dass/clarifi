@@ -16,7 +16,7 @@ context:
 
 # Story 11.1: Navigation & information-architecture restructure
 
-Status: ready-for-dev
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -45,18 +45,18 @@ component, the `app-shell.test.tsx`, and the now-redirecting `/dashboard/upload`
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Restructure the nav to destinations only (AC: #1)
-  - [ ] In `app-shell.tsx`, reduce `navItems` to `Dashboard · Query · Anomalies · Consents`; remove `Upload`, `Budgets`, `Account` entries. Keep the existing `usePathname` exact-match active logic and token classes.
-- [ ] Task 2: Upload modal (AC: #2, #5)
-  - [ ] Add a small modal/dialog wrapper component (new file, e.g. `apps/web/src/features/upload/upload-modal.tsx` or a generic `components/ui/modal.tsx`) using the **existing overlay idiom** from `notification-bell.tsx` (`fixed inset-0` backdrop + centered `bg-surface` panel + `shadow-modal`), with backdrop-click / close-button / `Esc` dismissal. Render the unmodified `UploadPanel` inside.
-  - [ ] Add the `[+ Add data]` primary `Button` to the shell header that toggles the modal open.
-- [ ] Task 3: User menu (AC: #4)
-  - [ ] Add a user-menu component (new file, e.g. `apps/web/src/features/account/user-menu.tsx`) following the `notification-bell` popover pattern (toggle button showing avatar/email, `fixed inset-0` dismiss layer + absolute panel). Items: email (read-only), "Profile & settings" → `Link href="/dashboard/account"`, and the Sign out action (move `useLogout` + redirect here).
-  - [ ] Remove the loose email `<p>` and the in-nav Sign out button from the shell; place the user menu in the header cluster.
-- [ ] Task 4: De-nav budgets + upload page (AC: #3, #5)
-  - [ ] Confirm the dashboard `#budgets` section is untouched (anchor still works). Make `/dashboard/upload` redirect to `/dashboard` (or leave it rendering) — but it must not appear in nav and must not 404.
-- [ ] Task 5: Update tests + verify (AC: #6, #7)
-  - [ ] Update `app-shell.test.tsx` per AC #6. Run `pnpm verify:story:web` (exit 0). Optionally drive via `run`/`verify` skills (sign in → nav shows 4 items → `[+ Add data]` opens modal → user menu shows email + sign out → sign-out redirects).
+- [x] Task 1: Restructure the nav to destinations only (AC: #1)
+  - [x] In `app-shell.tsx`, reduce `navItems` to `Dashboard · Query · Anomalies · Consents`; remove `Upload`, `Budgets`, `Account` entries. Keep the existing `usePathname` exact-match active logic and token classes.
+- [x] Task 2: Upload modal (AC: #2, #5)
+  - [x] Added generic `components/ui/modal.tsx` using the **existing overlay idiom** (`fixed inset-0` backdrop + `bg-surface` panel + `shadow-modal`), with backdrop-click / close-button / `Esc` dismissal. Renders the unmodified `UploadPanel` inside.
+  - [x] Added `features/upload/add-data-button.tsx` — the `[+ Add data]` primary `Button` in the shell header that toggles the modal.
+- [x] Task 3: User menu (AC: #4)
+  - [x] Added `features/account/user-menu.tsx` following the `notification-bell` popover pattern (avatar/initials toggle, `fixed inset-0` dismiss layer + absolute panel). Items: email (read-only), "Profile & settings" → `Link href="/dashboard/account"`, and the Sign out action (`useLogout` + `router.replace("/sign-in")` moved here).
+  - [x] Removed the loose email `<p>` and the in-nav Sign out button from the shell; the user menu sits in the header cluster.
+- [x] Task 4: De-nav budgets + upload page (AC: #3, #5)
+  - [x] Dashboard `#budgets` section untouched (anchor still works). `/dashboard/upload` now `redirect("/dashboard")` — not in nav, does not 404 (route still present in build output).
+- [x] Task 5: Update tests + verify (AC: #6, #7)
+  - [x] Updated `app-shell.test.tsx` to the new structure (11 tests). Ran `pnpm verify:story:web` → exit 0.
 
 ## Dev Notes
 
@@ -160,14 +160,37 @@ review runs three lenses — Blind Hunter (context-free bugs), Edge Case Hunter
 ## Dev Agent Record
 
 ### Agent Model Used
-_TBD_
+Claude Opus 4.8 (claude-opus-4-8) via bmad-dev-story
 
 ### Completion Notes List
-_TBD_
+
+Implemented the IA restructure exactly to scope — presentational/web-only, no guardrail surface.
+
+**AC → evidence mapping:**
+- **AC #1** (4 destinations; Upload/Budgets/Account de-navved; exact-match active) → `app-shell.test.tsx`: "renders the four destination nav links", "does not expose Upload, Budgets, or Account as nav links", "marks the active nav item…", "marks Query active on its child route without double-highlighting Dashboard".
+- **AC #2** (`+ Add data` opens a modal reusing UploadPanel; dismissable) → "opens the upload modal from the '+ Add data' action" (asserts `role=dialog` + the UploadPanel "CSV file" control). Backdrop/close/`Esc` dismissal implemented in `components/ui/modal.tsx`.
+- **AC #3** (budgets de-navved; `#budgets` anchor intact) → dashboard page untouched (not in diff); Budgets absent from nav per the AC #1 test.
+- **AC #4** (email + Profile & settings link + Sign out in the user menu) → "exposes the email and a sign-out control via the account menu" (asserts email text, Sign out button, and the Profile & settings link → `/dashboard/account`).
+- **AC #5** (no behaviour drift; no new dep) → `useSession`/`useLogout`/redirect preserved (moved into `UserMenu`); Modal/menu hand-rolled on the notification-popover idiom — **no dependency added** (Radix Slot was already present via `Button`).
+- **AC #6** (tests updated, not weakened) → kept the active-state + notification-bell assertions; added nav-set, modal, and user-menu coverage. 11 tests pass.
+- **AC #7** (gate) → `pnpm verify:story:web` exited **0**: web typecheck ✓, web test suite ✓ (zero skips), Next/Tailwind production build ✓.
+
+**Guardrail tripwire (Tier 2):** `git diff --name-only` confined to `apps/web/src/**` (shell, `ui/modal`, `features/upload/*`, `features/account/*`, upload page, shell test) + `_bmad-output/**` planning docs. Zero touches to `apps/api`, `packages/shared`, `prisma/`, money/`_cents`, RLS/`withUserContext`, the LLM gateway, idempotency keys, or outbox/webhook. No monetary arithmetic introduced; the only PII rendered is the user's own session email in their own menu (intended, unchanged from before).
+
+**Edge paths verified:** signed-out/loading session (email undefined) → `email ?? "—"` + initials `"?"`, no layout break; modal dismiss via backdrop / ✕ / `Esc`; `/dashboard/upload` deep-link redirects (still present in build output, no 404); header `flex-wrap` keeps nav + action cluster from overflowing on narrow widths.
+
+**Not verified by automated test (noted for review):** live in-browser run of sign-out redirect and modal interaction — the logout/redirect path is unchanged code moved verbatim into `UserMenu`; covered by mocks in the suite but not exercised against a running server this session.
 
 ### File List
-_TBD_
+
+- `apps/web/src/components/app-shell.tsx` (modified) — nav → 4 destinations; header cluster `AddDataButton · NotificationBell · UserMenu`; removed loose email + in-nav sign-out.
+- `apps/web/src/components/ui/modal.tsx` (new) — generic backdrop/Esc/close modal.
+- `apps/web/src/features/upload/add-data-button.tsx` (new) — `+ Add data` action → modal with `UploadPanel`.
+- `apps/web/src/features/account/user-menu.tsx` (new) — avatar/email menu: email, Profile & settings, Sign out.
+- `apps/web/src/app/(app)/dashboard/upload/page.tsx` (modified) — `redirect("/dashboard")`.
+- `apps/web/src/components/app-shell.test.tsx` (modified) — updated to new structure (11 tests).
 
 ## Change Log
 
-- 2026-06-21: Story created (ready-for-dev) as the first story of Epic 11 (UX Refinement) — opens the epic to in-progress. Scope is the IA restructure: nav reduced to four destinations, Upload→modal action, Account→user menu, Budgets de-navved. Presentational/web-only, no guardrail surface, no behaviour change. Not implemented.
+- 2026-06-21: Story created (ready-for-dev) as the first story of Epic 11 (UX Refinement) — opens the epic to in-progress. Scope is the IA restructure: nav reduced to four destinations, Upload→modal action, Account→user menu, Budgets de-navved. Presentational/web-only, no guardrail surface, no behaviour change.
+- 2026-06-21: Implemented via bmad-dev-story on branch `story/11-1-nav-ia-restructure` (baseline `55754af`). All 5 tasks complete; `pnpm verify:story:web` exit 0; status → review.
