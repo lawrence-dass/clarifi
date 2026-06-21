@@ -123,7 +123,7 @@ development_status:
   epic-9-retrospective: optional
 
   # Epic 10: Reliability & Hardening
-  epic-10: in-progress
+  epic-10: done
   10-1-durable-categorization-recovery: done
   10-2-bound-categorize-transaction: done
   10-3-nl-query-graceful-degradation: done
