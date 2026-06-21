@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ErrorState } from "@/components/error-state";
 import { Loading } from "@/components/loading";
+import { formatMoney } from "@/lib/format-money";
 import type { NotificationAnomaly } from "@/features/notifications/notification.types";
 import { useAnomalies, useDismissAnomaly, useReportAnomaly } from "./anomaly.hooks";
 
@@ -19,8 +20,10 @@ function severityBorderClass(severity: NotificationAnomaly["severity"]) {
   return "border-l-info";
 }
 
+// Anomalies are shown as a magnitude (e.g. "a $120.00 charge"); format via the
+// shared display formatter so locale/currency match the rest of the app.
 function formatAmount(cents: number, currency: string): string {
-  return `${currency} $${(Math.abs(cents) / 100).toFixed(2)}`;
+  return formatMoney(Math.abs(cents), currency);
 }
 
 function anomalySummary(anomaly: NotificationAnomaly): string {
