@@ -1,5 +1,10 @@
 # Deferred Work
 
+## Deferred from: code review of story-11.1 (2026-06-21)
+
+- **Shared single-open-overlay state for header popovers** — the notification bell and the new user menu each render a full-viewport `fixed inset-0` dismiss layer, so switching directly from one open popover to the other costs an extra click. Low-severity UX; consistent with the existing bell idiom. Revisit by hoisting a single "which overlay is open" state into the shell. [apps/web/src/features/account/user-menu.tsx, apps/web/src/features/notifications/notification-bell.tsx]
+- **Modal body-scroll lock** — `Modal` does not freeze background scroll while open (focus-trap was intentionally scoped out for v1). Add a small `overflow:hidden` on `<body>` while open when polishing a11y. [apps/web/src/components/ui/modal.tsx]
+
 ## Deferred from: code review of story-1.3 (2026-06-15)
 
 - **Rate limiting / lockout on `/auth/login` + `/auth/refresh`** — credential stuffing, brute force, argon2 DoS. Extends the rate-limit middleware already deferred from Story 1.2. [apps/api/src/modules/auth/auth.routes.ts]

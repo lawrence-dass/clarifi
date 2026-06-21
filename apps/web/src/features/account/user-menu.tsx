@@ -36,7 +36,7 @@ export function UserMenu() {
         onClick={() => setOpen((prev) => !prev)}
         className="flex items-center gap-2 rounded px-2 py-1.5 text-text-muted hover:bg-canvas hover:text-text"
         aria-label="Account menu"
-        aria-haspopup="menu"
+        aria-haspopup="true"
         aria-expanded={open}
       >
         <span

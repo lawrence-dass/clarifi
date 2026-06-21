@@ -16,7 +16,7 @@ context:
 
 # Story 11.1: Navigation & information-architecture restructure
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -57,6 +57,14 @@ component, the `app-shell.test.tsx`, and the now-redirecting `/dashboard/upload`
   - [x] Dashboard `#budgets` section untouched (anchor still works). `/dashboard/upload` now `redirect("/dashboard")` — not in nav, does not 404 (route still present in build output).
 - [x] Task 5: Update tests + verify (AC: #6, #7)
   - [x] Updated `app-shell.test.tsx` to the new structure (11 tests). Ran `pnpm verify:story:web` → exit 0.
+
+### Review Findings
+
+_From bmad-code-review (2026-06-21, baseline `55754af`). Three lenses applied inline (Blind Hunter / Edge Case Hunter / Acceptance Auditor) on a 243-line presentational diff. No High/Medium findings; all ACs satisfied; guardrail tripwire clean._
+
+- [x] [Review][Patch] `UserMenu` trigger sets `aria-haspopup="menu"` but the popup contains a link + button, not a `role="menu"` widget — minor screen-reader mismatch [apps/web/src/features/account/user-menu.tsx] — fixed: `aria-haspopup="true"` (2026-06-21)
+- [x] [Review][Defer] Bell and user-menu each render a full-viewport `fixed inset-0` dismiss layer, so switching directly from one open popover to the other takes an extra click — consistent with the pre-existing notification-bell idiom; revisit with a shared single-open-overlay state [apps/web/src/features/account/user-menu.tsx, apps/web/src/features/notifications/notification-bell.tsx] — deferred, low-severity UX polish
+- [x] [Review][Defer] `Modal` does not lock body scroll while open (background scrolls behind the dialog); focus-trap was intentionally scoped out — low a11y polish [apps/web/src/components/ui/modal.tsx] — deferred, story explicitly kept the modal minimal
 
 ## Dev Notes
 
@@ -194,3 +202,4 @@ Implemented the IA restructure exactly to scope — presentational/web-only, no 
 
 - 2026-06-21: Story created (ready-for-dev) as the first story of Epic 11 (UX Refinement) — opens the epic to in-progress. Scope is the IA restructure: nav reduced to four destinations, Upload→modal action, Account→user menu, Budgets de-navved. Presentational/web-only, no guardrail surface, no behaviour change.
 - 2026-06-21: Implemented via bmad-dev-story on branch `story/11-1-nav-ia-restructure` (baseline `55754af`). All 5 tasks complete; `pnpm verify:story:web` exit 0; status → review.
+- 2026-06-21: bmad-code-review (3 lenses, inline) — no High/Medium; 1 Low patch applied (`aria-haspopup="true"`), 2 Low defers logged to deferred-work.md. Typecheck + 11 shell tests green post-patch. Status → done.
