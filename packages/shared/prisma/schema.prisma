@@ -98,6 +98,12 @@ model User {
   passwordHash String   @map("password_hash")
   // PIPEDA: explicit consent captured at signup.
   consentedAt  DateTime @map("consented_at")
+  // Public demo users (Story 12.1): anonymous, synthetic-data-only, RLS-isolated,
+  // and TTL-reaped. `demoExpiresAt` is written at provision time; Story 12.2's
+  // reaper deletes the user (cascade) once it passes. Real users: isDemo=false,
+  // demoExpiresAt=null.
+  isDemo        Boolean   @default(false) @map("is_demo")
+  demoExpiresAt DateTime? @map("demo_expires_at")
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
@@ -109,6 +115,8 @@ model User {
   consents      Consent[]
   refreshTokens RefreshToken[]
 
+  // The 12.2 reaper scans for expired demo users on this composite.
+  @@index([isDemo, demoExpiresAt])
   @@map("users")
 }
 

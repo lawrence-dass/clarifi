@@ -5,6 +5,8 @@ export interface PublicUser {
   id: string;
   email: string;
   consentedAt: string;
+  // True for one-click public-demo sessions (Story 12.1).
+  isDemo: boolean;
 }
 
 export interface LoginPayload {

@@ -34,3 +34,7 @@
     - [Phase 4 — Polish (1 week)](./8-phased-build-plan.md#phase-4-polish-1-week)
   - [9. Interview Talking Points](./9-interview-talking-points.md)
   - [10. Out of Scope (for now)](./10-out-of-scope-for-now.md)
+  - [11. Public Demo Access](./11-public-demo-access.md)
+    - [11.1 One-Click Ephemeral Demo Session](./11-public-demo-access.md#111-one-click-ephemeral-demo-session)
+    - [11.2 Demo Abuse & Cost Controls](./11-public-demo-access.md#112-demo-abuse--cost-controls)
+    - [11.3 Demo Privacy Posture](./11-public-demo-access.md#113-demo-privacy-posture)

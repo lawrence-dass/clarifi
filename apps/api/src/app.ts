@@ -13,6 +13,7 @@ import { anomaliesRouter } from "./modules/anomaly/anomaly.routes.js";
 import { queryRouter } from "./modules/nl-query/query.routes.js";
 import { fdxRouter } from "./modules/fdx/fdx.routes.js";
 import { webhooksRouter } from "./modules/webhooks/webhooks.routes.js";
+import { demoRouter } from "./modules/demo/demo.routes.js";
 import { errorMiddleware } from "./middleware/error.js";
 
 declare global {
@@ -65,6 +66,7 @@ export function createApp(): Express {
   app.use("/query", queryRouter);
   app.use("/fdx", fdxRouter);
   app.use("/webhooks", webhooksRouter);
+  app.use("/demo", demoRouter);
 
   // Central error handler — must be registered last, after all routes.
   app.use(errorMiddleware);

@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { apiClient } from "@/lib/api-client";
 import type { LoginPayload, PublicUser } from "@/lib/auth";
+import { TryDemoButton } from "@/features/demo/try-demo-button";
 
 const SignInSchema = z.object({
   email: z.string().trim().toLowerCase().email().max(254),
@@ -79,6 +80,15 @@ function SignInForm() {
           Sign in
         </Button>
       </form>
+      <div className="my-6 flex items-center gap-3 text-xs text-text-faint">
+        <span className="h-px flex-1 bg-border" />
+        or
+        <span className="h-px flex-1 bg-border" />
+      </div>
+      <TryDemoButton fullWidth />
+      <p className="mt-2 text-center text-xs text-text-faint">
+        Explore with synthetic data — no signup required.
+      </p>
       <p className="mt-6 text-sm text-text-muted">
         Need an account?{" "}
         <Link href="/sign-up" className="font-medium text-primary hover:underline">

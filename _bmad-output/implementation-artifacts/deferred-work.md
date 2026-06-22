@@ -1,5 +1,9 @@
 # Deferred Work
 
+## Deferred from: story-12.1 verification (2026-06-21)
+
+- **Concurrent-refresh test is timing-fragile against a fast (local) Postgres** — `auth.routes.test.ts > "is atomic under concurrent refresh of the same token (AC #3)"` (Story 1.3) passes against Supabase but fails **deterministically** against a low-latency local Postgres. The test fires two simultaneous `/auth/refresh` calls assuming their transactions overlap (so the conditional-revoke race path fires); on local PG the calls serialize, so the loser reads the winner's already-committed `revokedAt` and takes the family-revoke (reuse) branch, killing the winner's freshly-issued token → the follow-up rotation gets 401 instead of 200. Not introduced by 12.1 (the test file and `rotateRefreshToken`'s race logic are unchanged). Decide whether to (a) make the test timing-robust (e.g. force overlap / assert either valid outcome) or (b) re-examine the reuse-vs-race branch ordering in `rotateRefreshToken`. Pairs with the existing "Isolated test database" deferral. [apps/api/src/modules/auth/auth.routes.test.ts, apps/api/src/modules/auth/auth.service.ts rotateRefreshToken]
+
 ## Deferred from: code review of story-11.2 (2026-06-21)
 
 - **Anomaly insights card shows a capped count** — the dashboard card derives its critical count from `useCriticalAnomalies` (`/anomalies?severity=critical&limit=10`), so with more than 10 criticals it under-reports the true total. Surfacing the real total needs a count returned by the anomalies endpoint (a new query the story deliberately avoided). Revisit when the API exposes a total. [apps/web/src/features/dashboard/anomaly-insights-section.tsx]

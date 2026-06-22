@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { TryDemoButton } from "@/features/demo/try-demo-button";
 
 export default function Home() {
   return (
@@ -9,7 +10,8 @@ export default function Home() {
         Clarity on where your money goes — categorization, anomaly detection, and
         plain-English answers about your own financial data.
       </p>
-      <div className="flex flex-wrap gap-3">
+      <div className="flex flex-wrap items-start gap-3">
+        <TryDemoButton />
         <Button asChild>
           <Link href="/sign-in">Sign in</Link>
         </Button>
@@ -17,6 +19,9 @@ export default function Home() {
           <Link href="/sign-up">Create account</Link>
         </Button>
       </div>
+      <p className="text-sm text-slate-500">
+        The demo is a temporary session pre-filled with synthetic data — no signup, no real bank.
+      </p>
     </main>
   );
 }

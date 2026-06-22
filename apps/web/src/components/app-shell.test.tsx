@@ -14,7 +14,7 @@ vi.mock("next/navigation", () => ({
 }));
 
 vi.mock("@/lib/auth", () => ({
-  useSession: () => ({ data: { email: "test@example.com" } }),
+  useSession: () => ({ data: { email: "test@example.com", isDemo: false } }),
   useLogout: () => ({ mutateAsync: mockMutateAsync, isPending: false }),
 }));
 

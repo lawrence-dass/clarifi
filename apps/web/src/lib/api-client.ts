@@ -27,7 +27,7 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 // Auth endpoints where a 401 means "bad/absent credentials", not "access token
 // expired" — refreshing and retrying these would either recurse or mask a real
 // auth failure, so they opt out of the refresh-and-retry below.
-const NO_REFRESH_PATHS = ["/auth/refresh", "/auth/login", "/auth/register", "/auth/logout"];
+const NO_REFRESH_PATHS = ["/auth/refresh", "/auth/login", "/auth/register", "/auth/logout", "/demo/session"];
 
 function isRefreshable(path: string): boolean {
   const p = path.startsWith("/") ? path : `/${path}`;

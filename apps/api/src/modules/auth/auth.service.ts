@@ -10,7 +10,7 @@ import {
 } from "@clarifi/shared";
 import { conflict, unauthorized } from "../../lib/app-error.js";
 import { config } from "../../config.js";
-import { generateRefreshToken, hashToken, durationToSeconds } from "./tokens.js";
+import { generateRefreshToken, hashToken, durationToSeconds, issueAccessToken } from "./tokens.js";
 
 /**
  * argon2id parameters — architecture.md (OWASP 2026). memoryCost is in KiB,
@@ -28,6 +28,8 @@ export interface PublicUser {
   id: string;
   email: string;
   consentedAt: Date;
+  // True for one-click public-demo users (Story 12.1); false for real accounts.
+  isDemo: boolean;
 }
 
 export interface DeleteAccountResult {
@@ -59,7 +61,7 @@ export async function registerUser(input: RegisterInput): Promise<PublicUser> {
         passwordHash,
         consentedAt: new Date(),
       },
-      select: { id: true, email: true, consentedAt: true },
+      select: { id: true, email: true, consentedAt: true, isDemo: true },
     });
   } catch (err) {
     // P2002 = unique constraint violation (users.email already registered).
@@ -135,9 +137,23 @@ export async function loginUser(input: LoginInput): Promise<Omit<IssuedTokens, "
     throw err;
   }
   return {
-    user: { id: user.id, email: user.email, consentedAt: user.consentedAt },
+    user: { id: user.id, email: user.email, consentedAt: user.consentedAt, isDemo: user.isDemo },
     refreshToken,
   };
+}
+
+/**
+ * Mint a fresh authenticated session (access JWT + persisted refresh row in a new
+ * family) for an already-resolved user id. Shared by flows that establish a
+ * session without password verification — currently the one-click demo
+ * (Story 12.1). The caller sets the cookies.
+ */
+export async function issueUserSession(
+  userId: string,
+): Promise<{ accessToken: string; refreshToken: string }> {
+  const accessToken = await issueAccessToken(userId);
+  const refreshToken = await issueRefreshRow(userId, randomUUID());
+  return { accessToken, refreshToken };
 }
 
 /**
@@ -184,7 +200,7 @@ export async function rotateRefreshToken(
       });
       const user = await tx.user.findUniqueOrThrow({
         where: { id: row.userId },
-        select: { id: true, email: true, consentedAt: true },
+        select: { id: true, email: true, consentedAt: true, isDemo: true },
       });
       return { user, refreshToken: raw };
     });
@@ -226,7 +242,7 @@ export async function getPublicUser(userId: string): Promise<PublicUser | null> 
   return withUserContext(userId, (tx) =>
     tx.user.findUnique({
       where: { id: userId },
-      select: { id: true, email: true, consentedAt: true },
+      select: { id: true, email: true, consentedAt: true, isDemo: true },
     }),
   );
 }

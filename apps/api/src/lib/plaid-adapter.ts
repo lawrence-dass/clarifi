@@ -10,6 +10,7 @@ import {
   type ItemPublicTokenExchangeResponse,
   type JWKPublicKey,
   type LinkTokenCreateResponse,
+  type SandboxPublicTokenCreateResponse,
   type Transaction,
   type TransactionsSyncResponse,
   type WebhookVerificationKeyGetResponse,
@@ -28,6 +29,10 @@ export interface PlaidClientLike {
     products: Products[];
     user: { client_user_id: string };
   }): Promise<{ data: LinkTokenCreateResponse }>;
+  sandboxPublicTokenCreate(input: {
+    institution_id: string;
+    initial_products: Products[];
+  }): Promise<{ data: SandboxPublicTokenCreateResponse }>;
   itemPublicTokenExchange(input: { public_token: string }): Promise<{ data: ItemPublicTokenExchangeResponse }>;
   accountsGet(input: { access_token: string }): Promise<{ data: AccountsGetResponse }>;
   transactionsSync(input: {
@@ -57,8 +62,20 @@ export interface PlaidSyncResult {
   hasMore: boolean;
 }
 
+// Plaid Sandbox default institution — "First Platypus Bank" (ins_109508), the
+// canonical sandbox institution used in Plaid's docs. Synthetic data only; no
+// real bank, no cost. Verify against https://plaid.com/docs/sandbox/.
+export const SANDBOX_INSTITUTION_ID = "ins_109508";
+
 export interface PlaidAdapter {
   createLinkToken(userId: string): Promise<string>;
+  /**
+   * Mint a Sandbox public_token directly (no Link UI), seeded with synthetic
+   * transactions for `initial_products`. Sandbox-only — used by the public demo
+   * (Story 12.1) to seed a demo user through the same canonical Plaid pipeline a
+   * real Link connection uses.
+   */
+  createSandboxPublicToken(institutionId?: string): Promise<string>;
   exchangePublicToken(publicToken: string): Promise<PlaidExchangeResult>;
   getItemAccounts(accessToken: string): Promise<PlaidAccountsResult>;
   syncTransactions(accessToken: string, cursor?: string): Promise<PlaidSyncResult>;
@@ -76,6 +93,14 @@ export function createPlaidAdapter(client?: PlaidClientLike): PlaidAdapter {
         user: { client_user_id: userId },
       });
       return response.data.link_token;
+    },
+
+    async createSandboxPublicToken(institutionId: string = SANDBOX_INSTITUTION_ID): Promise<string> {
+      const response = await getClient(client).sandboxPublicTokenCreate({
+        institution_id: institutionId,
+        initial_products: [Products.Transactions],
+      });
+      return response.data.public_token;
     },
 
     async exchangePublicToken(publicToken: string): Promise<PlaidExchangeResult> {

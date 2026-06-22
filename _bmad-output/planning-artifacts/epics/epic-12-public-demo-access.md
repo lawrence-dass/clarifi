@@ -18,8 +18,9 @@ the **FDX anti-corruption layer** (Plaid sandbox is just another adapter), and t
 > the canonical ingestion adapters — never bypass RLS or the sign-normalization
 > boundary to "just seed rows."
 
-**FRs covered:** none in the existing PRD — net-new public-access capability;
-flag to PM for a PRD addendum if it should be formalized.
+**FRs covered:** PRD §11 (Public Demo Access) — FR-12.1 through FR-12.7.
+Formalized via the PRD addendum (2026-06-21): new shard `prd/11-public-demo-access.md`
+plus reconciling edits to §2 (target users), §5 (NFRs), §6 (PIPEDA), §10 (out of scope).
 
 ## Story 12.1: One-click ephemeral demo session
 

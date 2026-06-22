@@ -5,6 +5,9 @@ import { createPlaidAdapter, type PlaidClientLike } from "./plaid-adapter.js";
 function fakeClient(): PlaidClientLike {
   return {
     linkTokenCreate: vi.fn(async () => ({ data: { link_token: "link-sandbox-123" } })),
+    sandboxPublicTokenCreate: vi.fn(async () => ({
+      data: { public_token: "public-sandbox-from-fake", request_id: "req-sb" },
+    })),
     itemPublicTokenExchange: vi.fn(async () => ({
       data: { access_token: "access-sandbox-secret", item_id: "item-sandbox-1", request_id: "req-1" },
     })),
@@ -118,6 +121,19 @@ describe("plaid adapter", () => {
         country_codes: ["CA", "US"],
         products: ["transactions"],
         user: { client_user_id: "user-1" },
+      }),
+    );
+  });
+
+  it("mints a Sandbox public token for the Transactions product (demo seed path)", async () => {
+    const client = fakeClient();
+    const adapter = createPlaidAdapter(client);
+
+    await expect(adapter.createSandboxPublicToken()).resolves.toBe("public-sandbox-from-fake");
+    expect(client.sandboxPublicTokenCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        institution_id: "ins_109508",
+        initial_products: ["transactions"],
       }),
     );
   });

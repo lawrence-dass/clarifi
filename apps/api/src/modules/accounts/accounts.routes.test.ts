@@ -53,6 +53,9 @@ function fakeAdapter(input?: {
       if (input?.throwWithToken) throw new Error(`provider leaked ${input.throwWithToken}`);
       return "link-sandbox-token";
     },
+    async createSandboxPublicToken() {
+      return "public-sandbox-token";
+    },
     async exchangePublicToken() {
       if (input?.throwWithToken) throw new Error(`provider leaked ${input.throwWithToken}`);
       return { accessToken, itemId };

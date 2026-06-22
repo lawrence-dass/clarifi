@@ -102,6 +102,9 @@ function fakeOptions(
       async createLinkToken() {
         throw new Error("not used");
       },
+      async createSandboxPublicToken() {
+        throw new Error("not used");
+      },
       async exchangePublicToken() {
         throw new Error("not used");
       },
