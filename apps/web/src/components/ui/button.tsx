@@ -16,9 +16,9 @@ const buttonVariants = cva(
         link: "text-primary underline-offset-4 hover:underline",
       },
       size: {
-        // Compact, reference-grade proportions (story 11.3): 36px tall with
-        // tighter horizontal padding reads sleeker than the old 40px default.
-        default: "h-9 px-3.5 text-sm",
+        // Compact, reference-grade proportions (story 11.3): 32px tall toolbar
+        // height with tight padding — the sleek "bank terminal" button.
+        default: "h-8 px-3.5 text-sm",
         sm: "h-8 px-3 text-xs",
         // toolbar action — UPPERCASE tracked, per the reference
         action: "h-8 px-3 text-label uppercase",

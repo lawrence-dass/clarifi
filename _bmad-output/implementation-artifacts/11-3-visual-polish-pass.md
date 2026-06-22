@@ -146,10 +146,10 @@ Single token-layer change; presentational/web-only, no guardrail surface.
 ### File List
 
 - `apps/web/tailwind.config.ts` (modified) — `borderRadius` scale tightened (sm 3 / DEFAULT 4 / md 4 / lg 6).
-- `apps/web/src/components/ui/button.tsx` (modified) — default size tightened `h-10 px-4` → `h-9 px-3.5` (40px → 36px) after user feedback that buttons read too big; `sm`/`action` sizes unchanged. Token-level (affects every default Button app-wide).
+- `apps/web/src/components/ui/button.tsx` (modified) — default size tightened `h-10 px-4` → `h-8 px-3.5` (40px → 32px) after user feedback that buttons read too big (iterated 40→36→32 with live screenshots); `sm`/`action` sizes unchanged. Token-level (affects every default Button app-wide).
 
 ## Change Log
 
 - 2026-06-21: Story created (ready-for-dev), final story of Epic 11. Token-layer radius tightening (Crisp ~3px: cards/buttons 6→4px, inputs 4→3px) to close the residual softness vs the reference screenshots; everything else in the Epic 9 token system already matches. Presentational/web-only, no guardrail surface.
 - 2026-06-21: Implemented via bmad-dev-story on branch `story/11-3-visual-polish` (baseline `cdb6ecb`). Single-token-scale change; `pnpm verify:story:web` exit 0. Status → review; live visual sign-off (AC #5) pending with the user.
-- 2026-06-21: User visual feedback "buttons look big" → tightened the default Button size `h-10 px-4` → `h-9 px-3.5` (40→36px). Typecheck + shell tests green. Still in review pending visual sign-off.
+- 2026-06-21: User visual feedback "buttons look big" → tightened the default Button size, iterated 40→36→32px (`h-8 px-3.5`) with live Chrome screenshots confirming nav/`+ Add data`/anomaly card + crisp radius render correctly. Typecheck + shell tests green. Still in review pending final visual sign-off.
