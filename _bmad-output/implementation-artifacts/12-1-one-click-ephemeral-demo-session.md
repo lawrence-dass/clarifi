@@ -21,7 +21,7 @@ guardrail_surfaces:
 
 # Story 12.1: One-Click Ephemeral Demo Session
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
