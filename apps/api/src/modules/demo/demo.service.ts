@@ -5,8 +5,13 @@ import { serviceUnavailable } from "../../lib/app-error.js";
 import { importCsv } from "../ingestion/ingestion.service.js";
 import { exchangePlaidPublicToken } from "../accounts/accounts.service.js";
 import { processPlaidSyncJob } from "../../workers/plaid-sync.worker.js";
+import { processCategorizeJob } from "../../workers/categorize.worker.js";
 import { plaidAdapter, type PlaidAdapter } from "../../lib/plaid-adapter.js";
 import { DEMO_SEED_CSV } from "./seed-data/demo-statement.js";
+
+// The async categorize enqueue is suppressed during demo provisioning (we run
+// categorization inline); a no-op stands in for the worker's enqueue fn.
+const noopRequestCategorization = async (): Promise<void> => undefined;
 
 /** A demo session lives for one hour; Story 12.2's reaper deletes it after. */
 export const DEMO_TTL_MS = 60 * 60 * 1000;
@@ -75,13 +80,15 @@ export async function provisionDemoUser(
   });
 
   if (kind === DemoKind.csv) {
-    // CSV seed. importCsv owns sign normalization, the idempotent
-    // (account, providerTransactionId) upsert, and the categorize enqueue.
+    // CSV seed. importCsv owns sign normalization + the idempotent
+    // (account, providerTransactionId) upsert. The async categorize enqueue is
+    // suppressed — we categorize inline below (Story 12.4).
     await importCsv({
       userId: user.id,
       bankFormat: "generic",
       institution: DEMO_INSTITUTION,
       csv: DEMO_SEED_CSV,
+      skipCategorizeEnqueue: true,
     });
   } else {
     // Plaid demo seeds ONLY Plaid Sandbox — no CSV fallback, so the kind contract
@@ -96,6 +103,12 @@ export async function provisionDemoUser(
       );
     }
   }
+
+  // Categorize + detect anomalies INLINE before returning, so the demo's
+  // dashboard is fully populated on first load (Story 12.4). The async enqueue
+  // is suppressed above, so the worker won't race this and double-detect.
+  // Best-effort: a failure leaves the demo loadable (just less populated).
+  await categorizeDemoSynchronously(user.id);
 
   return { id: user.id, email: user.email, consentedAt: user.consentedAt, isDemo: true, demoKind: kind };
 }
@@ -121,6 +134,27 @@ async function seedPlaidSandbox(userId: string, adapter: PlaidAdapter): Promise<
   );
   if (!item) return false;
 
-  await processPlaidSyncJob({ itemId: item.itemId }, { adapter });
+  // Suppress the per-account categorize enqueue — provisioning categorizes inline.
+  await processPlaidSyncJob({ itemId: item.itemId }, { adapter, requestCategorizationFn: noopRequestCategorization });
   return true;
+}
+
+/**
+ * Run categorization + anomaly detection synchronously for every account of a
+ * just-seeded demo user (Story 12.4), reusing the worker's `processCategorizeJob`
+ * (same logic, called inline instead of via the queue). `fallbackOnError: true`
+ * keeps an LLM hiccup from failing the mint — transactions fall back to "other"
+ * rather than throwing. Best-effort per account: nothing here fails the demo.
+ */
+async function categorizeDemoSynchronously(userId: string): Promise<void> {
+  const accounts = await withUserContext(userId, (tx) =>
+    tx.account.findMany({ select: { id: true } }),
+  );
+  for (const { id: accountId } of accounts) {
+    try {
+      await processCategorizeJob({ userId, accountId }, { fallbackOnError: true });
+    } catch {
+      // Demo still loads (this account just stays uncategorized).
+    }
+  }
 }

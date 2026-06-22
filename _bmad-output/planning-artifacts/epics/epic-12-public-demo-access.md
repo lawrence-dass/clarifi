@@ -75,3 +75,22 @@ So that each demo tells one clear story and isn't a muddled CAD/USD mix of both 
 **And** in the **CSV demo**, the "+ Add data" flow defaults to the **Generic CSV** format with the bundled sample available to import
 **And** 12.2's Turnstile + per-IP rate limit + per-session quota + TTL reaper continue to apply unchanged to both kinds
 **And** typecheck and DB-backed tests pass.
+
+## Story 12.4: Fully-loaded demo (synchronous seeding)
+
+As a prospective reviewer,
+I want the demo dashboard fully populated the moment I land in it,
+So that categories and anomalies are visible immediately, with no refresh.
+
+> Polish follow-up to 12.1–12.3. The async categorize/detect path leaves a fresh
+> demo briefly empty (the dashboard card fetches once on load, before the worker
+> runs ~10-15s later). This blocks the mint until processing finishes.
+
+**Acceptance Criteria:**
+
+**Given** a demo mint (`POST /demo/session`, either kind)
+**When** provisioning runs
+**Then** categorization AND anomaly detection run **inline** (synchronously) before the 201 response, reusing the worker's `processCategorizeJob`
+**And** the async categorize enqueue is **suppressed** for the demo path (CSV via a flag, Plaid via a no-op enqueue fn) so the worker never races the inline run and double-detects anomalies
+**And** inline categorization is **best-effort** (`fallbackOnError`) — an LLM hiccup leaves the demo loadable rather than failing the mint
+**And** non-demo ingestion is unchanged (still async); typecheck and DB-backed tests pass.

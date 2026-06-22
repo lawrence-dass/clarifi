@@ -17,6 +17,14 @@ vi.mock("../../queues/categorize.outbox.js", () => ({
   requestCategorization: mocks.requestCategorization,
 }));
 
+// Story 12.4: provisioning categorizes INLINE via the worker's processCategorizeJob
+// (no real LLM in tests). Stub it; assert it runs per account instead of the
+// async enqueue (which is now suppressed).
+const workerMocks = vi.hoisted(() => ({ processCategorizeJob: vi.fn(async () => undefined) }));
+vi.mock("../../workers/categorize.worker.js", () => ({
+  processCategorizeJob: workerMocks.processCategorizeJob,
+}));
+
 import { provisionDemoUser } from "./demo.service.js";
 import { DEMO_SEED_CSV } from "./seed-data/demo-statement.js";
 import { importCsv } from "../ingestion/ingestion.service.js";
@@ -48,6 +56,7 @@ afterEach(() => {
   restorePlaid?.();
   restorePlaid = undefined;
   mocks.requestCategorization.mockClear();
+  workerMocks.processCategorizeJob.mockClear();
 });
 
 /**
@@ -137,7 +146,7 @@ describe.skipIf(!hasDb)("provisionDemoUser (Story 12.3 — kind-branched)", () =
     expect(expiry).toBeLessThanOrEqual(after + 60 * 60 * 1000 + 1000);
   });
 
-  it("CSV demo seeds ONLY CSV (no Plaid) and requests categorization, never an inline LLM call (AC3, AC4)", async () => {
+  it("CSV demo seeds ONLY CSV (no Plaid) and categorizes inline, not via the async queue (AC3, AC4, 12.4)", async () => {
     const demo = track(await provisionCsv());
 
     const csv = await withUserContext(demo.id, (tx) =>
@@ -148,7 +157,10 @@ describe.skipIf(!hasDb)("provisionDemoUser (Story 12.3 — kind-branched)", () =
     );
     expect(csv).toBe(1);
     expect(plaid).toBe(0);
-    expect(mocks.requestCategorization).toHaveBeenCalled();
+    // 12.4: categorization runs INLINE (per account) before the mint returns,
+    // and the async enqueue is suppressed (so the worker can't double-detect).
+    expect(workerMocks.processCategorizeJob).toHaveBeenCalled();
+    expect(mocks.requestCategorization).not.toHaveBeenCalled();
   });
 
   it("Plaid demo seeds ONLY Plaid (no CSV) with demoKind=plaid (AC3)", async () => {

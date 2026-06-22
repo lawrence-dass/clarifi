@@ -24,6 +24,11 @@ export interface ImportCsvInput {
   bankFormat: BankFormat;
   institution: string;
   csv: string;
+  // When true, do NOT enqueue async categorization (the caller categorizes
+  // inline instead). Used by the public demo (Story 12.4) so it can run
+  // categorization + anomaly detection synchronously and avoid the worker
+  // double-processing the same rows. Default false (normal async path).
+  skipCategorizeEnqueue?: boolean;
 }
 
 /**
@@ -104,7 +109,7 @@ export async function importCsv(input: ImportCsvInput): Promise<ImportResult> {
     };
   });
 
-  if (result.imported > 0) {
+  if (result.imported > 0 && !input.skipCategorizeEnqueue) {
     await requestCategorization({ userId: input.userId, accountId: result.accountId });
   }
 

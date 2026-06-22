@@ -9,6 +9,12 @@ vi.mock("../../queues/categorize.outbox.js", () => ({
   requestCategorization: mocks.requestCategorization,
 }));
 
+// Story 12.4: provisioning categorizes inline via the worker — stub it so the
+// route test doesn't hit the real LLM.
+vi.mock("../../workers/categorize.worker.js", () => ({
+  processCategorizeJob: vi.fn(async () => undefined),
+}));
+
 import { createApp } from "../../app.js";
 import { plaidAdapter } from "../../lib/plaid-adapter.js";
 
