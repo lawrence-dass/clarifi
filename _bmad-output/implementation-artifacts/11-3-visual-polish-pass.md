@@ -14,7 +14,7 @@ context:
 
 # Story 11.3: Visual polish pass — crisp enterprise styling
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -53,7 +53,7 @@ Decision (Lawrence, 2026-06-21): go to the **"Crisp ~3px"** option — cards/but
   - [x] Static audit: radius usage is 100% token-based (no hardcoded `rounded-[Npx]`), so `Button`/`Card`/`Input`/`Modal`/`Badge`/KPI tiles inherit 4px and `rounded-full` (avatars, badges, dots) is untouched. No component edits needed.
 - [~] Task 3: Verify (AC: #5)
   - [x] `pnpm verify:story:web` exit 0 (the production build compiled the new tokens).
-  - [ ] **Live visual confirmation pending** — handed to the user (a dev server is already up on :3000; a Tailwind-config change needs a restart to reload). See Completion Notes.
+  - [x] **Live visual confirmation done** — viewed `/sign-in` + `/dashboard` in Chrome; nav, `+ Add data`, avatar menu, anomaly card, crisp radius and the 32px button all confirmed by the user, who approved closing the story.
 
 ## Dev Notes
 
@@ -152,4 +152,5 @@ Single token-layer change; presentational/web-only, no guardrail surface.
 
 - 2026-06-21: Story created (ready-for-dev), final story of Epic 11. Token-layer radius tightening (Crisp ~3px: cards/buttons 6→4px, inputs 4→3px) to close the residual softness vs the reference screenshots; everything else in the Epic 9 token system already matches. Presentational/web-only, no guardrail surface.
 - 2026-06-21: Implemented via bmad-dev-story on branch `story/11-3-visual-polish` (baseline `cdb6ecb`). Single-token-scale change; `pnpm verify:story:web` exit 0. Status → review; live visual sign-off (AC #5) pending with the user.
-- 2026-06-21: User visual feedback "buttons look big" → tightened the default Button size, iterated 40→36→32px (`h-8 px-3.5`) with live Chrome screenshots confirming nav/`+ Add data`/anomaly card + crisp radius render correctly. Typecheck + shell tests green. Still in review pending final visual sign-off.
+- 2026-06-21: User visual feedback "buttons look big" → tightened the default Button size, iterated 40→36→32px (`h-8 px-3.5`) with live Chrome screenshots confirming nav/`+ Add data`/anomaly card + crisp radius render correctly. Typecheck + shell tests green.
+- 2026-06-21: Visual sign-off received; user opted to merge without a formal code-review pass (diff is the Tailwind radius block + the Button size). Status → done.
