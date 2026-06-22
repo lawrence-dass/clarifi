@@ -3,7 +3,11 @@
  *
  * Inlined as a string constant so it ships in the production bundle — the API
  * must NOT read `docs/sample-data/...` at runtime (that path is not shipped).
- * Mirrors `docs/sample-data/sample-statement-generic.csv`. Synthetic data only.
+ * Based on `docs/sample-data/sample-statement-generic.csv`. Synthetic data only.
+ *
+ * Includes one deliberate outlier — "Birks Jewellers -6800.00", a first-time
+ * large purchase — so the CSV demo reliably surfaces a critical anomaly
+ * (otherwise the statement is regular and the anomaly card would look empty).
  *
  * `generic` bank format: Date,Description,Amount with an already-signed amount
  * from the customer's view (outflow < 0, inflow > 0) — the CSV adapter applies
@@ -37,6 +41,7 @@ export const DEMO_SEED_CSV = `Date,Description,Amount
 2026-06-11,LCBO,-39.95
 2026-06-12,Spotify,-10.99
 2026-06-13,Uber Eats,-34.20
+2026-06-14,Birks Jewellers,-6800.00
 2026-06-15,Payroll Deposit - ACME Corp,2450.00
 2026-06-16,Shoppers Drug Mart,-27.66
 2026-06-17,Presto Transit,-30.00
