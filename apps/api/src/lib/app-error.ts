@@ -33,6 +33,14 @@ export function unauthorized(code: string, message: string, details?: unknown): 
   return new AppError(code, 401, message, details);
 }
 
+export function forbidden(code: string, message: string, details?: unknown): AppError {
+  return new AppError(code, 403, message, details);
+}
+
+export function tooManyRequests(code: string, message: string, details?: unknown): AppError {
+  return new AppError(code, 429, message, details);
+}
+
 export function serviceUnavailable(code: string, message: string, details?: unknown): AppError {
   return new AppError(code, 503, message, details);
 }

@@ -32,6 +32,11 @@ declare global {
 export function createApp(): Express {
   const app = express();
 
+  // Behind one hosting proxy (Render/Vercel): trust the first X-Forwarded-For hop
+  // so `req.ip` is the real client, not the proxy. Required for per-IP rate limits
+  // (Story 12.2) to be per-client rather than effectively global.
+  app.set("trust proxy", 1);
+
   app.use(helmet());
   app.use(
     cors({

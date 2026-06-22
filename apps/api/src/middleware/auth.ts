@@ -10,6 +10,9 @@ declare global {
   namespace Express {
     interface Request {
       userId?: string;
+      // True when the authenticated user is a public-demo session (Story 12.2);
+      // downstream cost-control guards key off this. Undefined on unauthed routes.
+      isDemo?: boolean;
     }
   }
 }
@@ -32,10 +35,11 @@ export async function requireAuth(req: Request, _res: Response, next: NextFuncti
       throw unauthorized("UNAUTHENTICATED", "Authentication required");
     }
     const user = await withUserContext(userId, (tx) =>
-      tx.user.findUnique({ where: { id: userId }, select: { id: true } }),
+      tx.user.findUnique({ where: { id: userId }, select: { id: true, isDemo: true } }),
     );
     if (!user) throw unauthorized("UNAUTHENTICATED", "Authentication required");
     req.userId = userId;
+    req.isDemo = user.isDemo;
     next();
   } catch (err) {
     next(err);

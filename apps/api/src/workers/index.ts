@@ -1,6 +1,7 @@
 import type { Worker } from "bullmq";
 import { startCategorizeOutboxDrainer } from "../queues/categorize.outbox.js";
 import { startCategorizeReconciler } from "../queues/categorize.reconcile.js";
+import { startDemoReaper } from "../queues/demo-reaper.js";
 import { startPlaidSyncOutboxDrainer } from "../queues/plaid-sync.outbox.js";
 import { createAnomalyExplainWorker } from "./anomaly-explain.worker.js";
 import { createCategorizeWorker } from "./categorize.worker.js";
@@ -34,11 +35,15 @@ export function startWorkers(): StartedWorkers {
   // Durability backstop: re-enqueue categorization for transactions the fast
   // path left stuck at category = null (story 10.1).
   const stopCategorizeReconciler = startCategorizeReconciler();
+  // TTL reaper: delete expired demo users end-to-end via the cascade/RLS deletion
+  // path (story 12.2). Worker-process only, like every other scheduled sweep.
+  const stopDemoReaper = startDemoReaper();
   return {
     async close() {
       stopCategorizeDrainer();
       stopPlaidSyncDrainer();
       stopCategorizeReconciler();
+      stopDemoReaper();
       await Promise.all(workers.map((worker) => worker.close()));
     },
   };

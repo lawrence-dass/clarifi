@@ -55,6 +55,23 @@ const EnvSchema = z.object({
     .optional()
     .transform((value) => (value && value.length > 0 ? value : undefined)),
   PLAID_ENV: z.enum(["sandbox", "development", "production"]).default("sandbox"),
+  // ── Demo abuse & cost controls (Story 12.2) ───────────────────────────────
+  // Cloudflare Turnstile secret. Unset → the bot-gate bypasses (dev/CI); when
+  // set, demo-mint is verified server-side before provisioning.
+  TURNSTILE_SECRET_KEY: z
+    .string()
+    .optional()
+    .transform((value) => (value && value.length > 0 ? value : undefined)),
+  // Per-demo-session quota of LLM-spending NL queries.
+  DEMO_SESSION_NL_QUOTA: z.coerce.number().int().positive().default(10),
+  // Per-IP rate limits (Redis) — counts per window. Generous defaults; tune in prod.
+  DEMO_MINT_RATE_LIMIT: z.coerce.number().int().positive().default(10),
+  DEMO_MINT_RATE_WINDOW_SEC: z.coerce.number().int().positive().default(3600),
+  DEMO_NL_RATE_LIMIT: z.coerce.number().int().positive().default(60),
+  DEMO_NL_RATE_WINDOW_SEC: z.coerce.number().int().positive().default(3600),
+  // TTL reaper (worker): how often to sweep, and the max users deleted per sweep.
+  DEMO_REAP_INTERVAL_MS: z.coerce.number().int().positive().default(5 * 60_000),
+  DEMO_REAP_BATCH: z.coerce.number().int().positive().default(100),
   ENCRYPTION_KEY: z.string().min(1).transform(decodeEncryptionKey),
   // Token lifetimes. Validated to the exact grammar durationToSeconds accepts
   // (positive integer + s/m/h/d) so a value only one parser would accept can't
