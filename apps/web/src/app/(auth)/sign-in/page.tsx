@@ -85,7 +85,10 @@ function SignInForm() {
         or
         <span className="h-px flex-1 bg-border" />
       </div>
-      <TryDemoButton fullWidth />
+      <div className="space-y-2">
+        <TryDemoButton kind="csv" fullWidth />
+        <TryDemoButton kind="plaid" fullWidth />
+      </div>
       <p className="mt-2 text-center text-xs text-text-faint">
         Explore with synthetic data — no signup required.
       </p>

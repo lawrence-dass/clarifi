@@ -4,6 +4,7 @@ import {
   prisma,
   withUserContext,
   Prisma,
+  type DemoKind,
   type RegisterInput,
   type LoginInput,
   type DeleteAccountInput,
@@ -30,6 +31,8 @@ export interface PublicUser {
   consentedAt: Date;
   // True for one-click public-demo users (Story 12.1); false for real accounts.
   isDemo: boolean;
+  // Which demo flavor (Story 12.3); null for real users (and pre-12.3 demos).
+  demoKind: DemoKind | null;
 }
 
 export interface DeleteAccountResult {
@@ -61,7 +64,7 @@ export async function registerUser(input: RegisterInput): Promise<PublicUser> {
         passwordHash,
         consentedAt: new Date(),
       },
-      select: { id: true, email: true, consentedAt: true, isDemo: true },
+      select: { id: true, email: true, consentedAt: true, isDemo: true, demoKind: true },
     });
   } catch (err) {
     // P2002 = unique constraint violation (users.email already registered).
@@ -137,7 +140,7 @@ export async function loginUser(input: LoginInput): Promise<Omit<IssuedTokens, "
     throw err;
   }
   return {
-    user: { id: user.id, email: user.email, consentedAt: user.consentedAt, isDemo: user.isDemo },
+    user: { id: user.id, email: user.email, consentedAt: user.consentedAt, isDemo: user.isDemo, demoKind: user.demoKind },
     refreshToken,
   };
 }
@@ -200,7 +203,7 @@ export async function rotateRefreshToken(
       });
       const user = await tx.user.findUniqueOrThrow({
         where: { id: row.userId },
-        select: { id: true, email: true, consentedAt: true, isDemo: true },
+        select: { id: true, email: true, consentedAt: true, isDemo: true, demoKind: true },
       });
       return { user, refreshToken: raw };
     });
@@ -242,7 +245,7 @@ export async function getPublicUser(userId: string): Promise<PublicUser | null> 
   return withUserContext(userId, (tx) =>
     tx.user.findUnique({
       where: { id: userId },
-      select: { id: true, email: true, consentedAt: true, isDemo: true },
+      select: { id: true, email: true, consentedAt: true, isDemo: true, demoKind: true },
     }),
   );
 }

@@ -32,7 +32,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary"
                   title="You are exploring a temporary demo with synthetic data."
                 >
-                  Demo
+                  {session.data.demoKind === "csv"
+                    ? "CSV Demo"
+                    : session.data.demoKind === "plaid"
+                      ? "Plaid Demo"
+                      : "Demo"}
                 </span>
               ) : null}
             </div>

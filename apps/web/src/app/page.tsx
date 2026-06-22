@@ -11,7 +11,8 @@ export default function Home() {
         plain-English answers about your own financial data.
       </p>
       <div className="flex flex-wrap items-start gap-3">
-        <TryDemoButton />
+        <TryDemoButton kind="csv" />
+        <TryDemoButton kind="plaid" />
         <Button asChild>
           <Link href="/sign-in">Sign in</Link>
         </Button>
@@ -20,7 +21,8 @@ export default function Home() {
         </Button>
       </div>
       <p className="text-sm text-slate-500">
-        The demo is a temporary session pre-filled with synthetic data — no signup, no real bank.
+        Each demo is a temporary session pre-filled with synthetic data — no signup, no real bank.
+        The CSV demo showcases statement import (CAD); the Plaid demo showcases open-banking sync.
       </p>
     </main>
   );

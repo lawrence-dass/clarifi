@@ -40,13 +40,13 @@ function cookieHeader(setCookies: string[]): string {
   return setCookies.map((c) => c.split(";")[0]).join("; ");
 }
 
-describe.skipIf(!hasDb)("POST /demo/session (Story 12.1)", () => {
-  it("provisions a demo user, sets httpOnly auth cookies, and returns isDemo:true (AC1, AC5)", async () => {
-    const res = await request(app).post("/demo/session");
+describe.skipIf(!hasDb)("POST /demo/session (Story 12.3 — kind-branched)", () => {
+  it("provisions a CSV demo, sets httpOnly cookies, returns isDemo + demoKind:csv (AC1)", async () => {
+    const res = await request(app).post("/demo/session").send({ kind: "csv" });
     expect(res.status).toBe(201);
     demoUserIds.push(res.body.id as string);
 
-    expect(res.body).toMatchObject({ isDemo: true });
+    expect(res.body).toMatchObject({ isDemo: true, demoKind: "csv" });
     expect(res.body.email).toMatch(/^demo\+[0-9a-f-]{36}@demo\.clarifi\.local$/);
     expect(res.body).not.toHaveProperty("passwordHash");
 
@@ -55,17 +55,26 @@ describe.skipIf(!hasDb)("POST /demo/session (Story 12.1)", () => {
     expect(cookies.some((c) => c.startsWith("refresh_token=") && /HttpOnly/i.test(c))).toBe(true);
   });
 
-  it("drops the visitor into an authenticated session — /auth/me returns the demo user (AC1)", async () => {
-    const session = await request(app).post("/demo/session");
+  it("rejects a missing/invalid kind with 400 (AC1)", async () => {
+    const missing = await request(app).post("/demo/session").send({});
+    expect(missing.status).toBe(400);
+    expect(missing.body.error.code).toBe("INVALID_DEMO_KIND");
+
+    const bad = await request(app).post("/demo/session").send({ kind: "wire-transfer" });
+    expect(bad.status).toBe(400);
+  });
+
+  it("drops the visitor into an authenticated session — /auth/me returns the demo user + kind (AC1, AC4)", async () => {
+    const session = await request(app).post("/demo/session").send({ kind: "csv" });
     demoUserIds.push(session.body.id as string);
     const cookie = cookieHeader(cookiesFrom(session));
 
     const me = await request(app).get("/auth/me").set("Cookie", cookie);
     expect(me.status).toBe(200);
-    expect(me.body).toMatchObject({ id: session.body.id, isDemo: true });
+    expect(me.body).toMatchObject({ id: session.body.id, isDemo: true, demoKind: "csv" });
   });
 
-  it("marks real (non-demo) users isDemo:false on /auth/me", async () => {
+  it("marks real (non-demo) users isDemo:false / demoKind:null on /auth/me (AC4)", async () => {
     const email = `demo-route-${randomUUID()}@example.test`;
     normalEmails.push(email);
     await request(app).post("/auth/register").send({ email, password: "correct-horse-battery", consent: true });
@@ -75,5 +84,6 @@ describe.skipIf(!hasDb)("POST /demo/session (Story 12.1)", () => {
     const me = await request(app).get("/auth/me").set("Cookie", cookie);
     expect(me.status).toBe(200);
     expect(me.body.isDemo).toBe(false);
+    expect(me.body.demoKind).toBeNull();
   });
 });

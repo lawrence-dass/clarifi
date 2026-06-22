@@ -17,4 +17,5 @@ export {
   AnomalyType,
   AnomalySeverity,
   ConsentStatus,
+  DemoKind,
 } from "./generated/prisma/client.js";

@@ -17,7 +17,11 @@ const hasDb = dbUrl.length > 0 && !dbUrl.includes("placeholder");
 
 const createdUserIds: string[] = [];
 
-async function makeUser(opts: { isDemo: boolean; expiresAt: Date | null }): Promise<string> {
+async function makeUser(opts: {
+  isDemo: boolean;
+  expiresAt: Date | null;
+  kind?: "csv" | "plaid" | null;
+}): Promise<string> {
   const user = await prisma.user.create({
     data: {
       email: `reaper-${randomUUID()}@example.test`,
@@ -25,6 +29,7 @@ async function makeUser(opts: { isDemo: boolean; expiresAt: Date | null }): Prom
       consentedAt: new Date(),
       isDemo: opts.isDemo,
       demoExpiresAt: opts.expiresAt,
+      demoKind: opts.kind ?? null,
     },
     select: { id: true },
   });
@@ -74,16 +79,19 @@ describe.skipIf(!hasDb)("reapExpiredDemoUsers (Story 12.2)", () => {
     const hourAgo = new Date(Date.now() - 60 * 60_000);
     const hourAhead = new Date(Date.now() + 60 * 60_000);
 
-    const expiredDemo = await makeUser({ isDemo: true, expiresAt: hourAgo });
-    const expiredChildren = await seedAccountAndTxn(expiredDemo);
-    const liveDemo = await makeUser({ isDemo: true, expiresAt: hourAhead });
+    // Both demo kinds are reaped (the reaper keys on isDemo+demoExpiresAt, not kind).
+    const expiredCsv = await makeUser({ isDemo: true, expiresAt: hourAgo, kind: "csv" });
+    const expiredChildren = await seedAccountAndTxn(expiredCsv);
+    const expiredPlaid = await makeUser({ isDemo: true, expiresAt: hourAgo, kind: "plaid" });
+    const liveDemo = await makeUser({ isDemo: true, expiresAt: hourAhead, kind: "csv" });
     const realUser = await makeUser({ isDemo: false, expiresAt: null });
 
     const deleted = await reapExpiredDemoUsers({ batch: 100 });
-    expect(deleted).toBeGreaterThanOrEqual(1);
+    expect(deleted).toBeGreaterThanOrEqual(2);
 
-    // Expired demo user + its data are gone (PIPEDA deletion via cascade).
-    expect(await prisma.user.findUnique({ where: { id: expiredDemo } })).toBeNull();
+    // Expired demo users of BOTH kinds + their data are gone (PIPEDA cascade).
+    expect(await prisma.user.findUnique({ where: { id: expiredCsv } })).toBeNull();
+    expect(await prisma.user.findUnique({ where: { id: expiredPlaid } })).toBeNull();
     expect(await prisma.account.findUnique({ where: { id: expiredChildren.accountId } })).toBeNull();
     expect(await prisma.transaction.findUnique({ where: { id: expiredChildren.txnId } })).toBeNull();
 

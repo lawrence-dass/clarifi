@@ -88,6 +88,14 @@ enum ConsentStatus {
   revoked
 }
 
+// Which source a public-demo user was seeded from (Story 12.3). Each demo is one
+// flavor — CSV (CAD sample) or Plaid Sandbox — so the experience stays coherent.
+// Null for real users (and any pre-12.3 demo user).
+enum DemoKind {
+  csv
+  plaid
+}
+
 // ---------------------------------------------------------------------------
 // Models
 // ---------------------------------------------------------------------------
@@ -104,6 +112,8 @@ model User {
   // demoExpiresAt=null.
   isDemo        Boolean   @default(false) @map("is_demo")
   demoExpiresAt DateTime? @map("demo_expires_at")
+  // Which source this demo was seeded from (Story 12.3); null for real users.
+  demoKind      DemoKind? @map("demo_kind")
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 

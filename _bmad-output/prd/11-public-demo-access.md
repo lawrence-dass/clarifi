@@ -1,6 +1,8 @@
 # 11. Public Demo Access
 
-A prospective reviewer can try the full app in **one click** — no email, no password, no real bank — while LLM/compute cost stays bounded and bot-resistant. A **"Try the live demo"** entry mints an **ephemeral, RLS-isolated demo user** pre-seeded with realistic data, automatically deleted after a short lifetime.
+A prospective reviewer can try the full app in **one click** — no email, no password, no real bank — while LLM/compute cost stays bounded and bot-resistant. The entry offers **two coherent demo flavors**, chosen at the door: a **Sample-CSV demo** (Canadian data, CAD — showcases the CSV import pipeline) and a **Plaid open-banking demo** (Plaid Sandbox — showcases the FDX adapter / Link / sync). Each mints an **ephemeral, RLS-isolated demo user** pre-seeded with **that one source**, automatically deleted after a short lifetime.
+
+> Why two demos, not one combined: a single demo seeded from both sources conflates two different stories and mixes currencies (CSV is CAD, Plaid Sandbox is USD), which reads as muddled. Splitting by **demo kind** keeps each experience internally consistent and lets the UI say *which* demo the visitor is in.
 
 This directly serves the **secondary user named in §2** (fintech interviewers evaluating the portfolio project): zero-friction evaluation is the difference between an interviewer clicking through the real product and skimming a screenshot. It also lets the demo *showcase three of the project's pillars at once* — **RLS** tenancy (every demo visitor is invisible to every other), the **FDX anti-corruption layer** (Plaid Sandbox is just another adapter), and the **PIPEDA deletion path** (the TTL reaper *is* deletion).
 
@@ -8,12 +10,14 @@ This directly serves the **secondary user named in §2** (fintech interviewers e
 
 ## 11.1 One-Click Ephemeral Demo Session
 
-- A **"Try the live demo"** action on the landing and sign-in surfaces provisions a fresh **anonymous demo user** and drops the visitor straight into the authenticated app — no signup form, no credentials.
+- Landing and sign-in surfaces present **two demo entries** — *Demo with sample CSV* and *Demo with Plaid (open banking)*. Either provisions a fresh **anonymous demo user** and drops the visitor straight into the authenticated app — no signup form, no credentials.
+- The chosen **demo kind** (`csv` | `plaid`) is recorded on the user record at provision time and drives seeding, the UI badge, and the Add-data default.
 - The demo user is **RLS-isolated** through the standard `withUserContext` session-variable mechanism: a demo user's data is invisible to every other user, including other concurrent demo visitors. **No new tenancy path is introduced** — the demo is proof the existing isolation holds under anonymous, concurrent traffic.
-- The user is **pre-seeded with realistic data through the canonical ingestion adapters** — **both** the existing sample CSV **and** Plaid **Sandbox** synthetic data (no Link UI, no real bank, no Plaid cost). Seeding both adapters is deliberate: it exercises the FDX anti-corruption story and the Plaid webhook/sync path in the same session.
+- The user is **pre-seeded through the canonical ingestion adapters with the single source matching the chosen kind** — the bundled sample CSV (CAD) **or** Plaid **Sandbox** synthetic data (no Link UI, no real bank, no Plaid cost). One source per demo keeps the experience coherent and currency-consistent.
 - **Sign normalization is applied once at ingestion**, exactly as for real data — the demo never bypasses the sign-normalization boundary to "just seed rows."
 - Seeded transactions are **pre-categorized at provision time**, so normal browsing of the demo incurs **no per-render LLM spend**.
-- The demo user is **clearly marked as demo** (a flag/role on the user record, surfaced as a visible "Demo" badge in the UI) and can sign out / exit.
+- The demo user is **clearly marked as demo with its kind** — a visible **"CSV Demo" / "Plaid Demo"** badge in the UI — and can sign out / exit.
+- In the **CSV demo**, the **"+ Add data"** flow **defaults to the Generic CSV format** and offers the bundled sample so the visitor can exercise the import + duplicate-detection pipeline directly.
 - The `(account_id, provider_transaction_id)` idempotency constraint and integer-cents money discipline hold for seeded data exactly as for real data.
 
 ## 11.2 Demo Abuse & Cost Controls
@@ -34,9 +38,10 @@ The PRD's PIPEDA stance (§6) is built on *explicit consent at signup*. A one-cl
 
 Detailed acceptance criteria live in `planning-artifacts/epics/epic-12-public-demo-access.md`. Summary:
 
-- **FR-12.1** — One-click provisioning of an anonymous, RLS-isolated demo user from a public "Try the live demo" entry, dropping the visitor into the authenticated app.
-- **FR-12.2** — Demo users seeded via the canonical ingestion adapters (sample CSV + Plaid Sandbox), sign-normalized once at ingestion, pre-categorized at provision time, holding to the idempotency and integer-cents guardrails.
-- **FR-12.3** — A visible "Demo" indicator and a demo flag/role on the user record; sign-out/exit supported.
+- **FR-12.1** — One-click provisioning of an anonymous, RLS-isolated demo user from a public demo entry, dropping the visitor into the authenticated app.
+- **FR-12.2** — Demo users seeded via the canonical ingestion adapters with the **single source matching the chosen demo kind** (sample CSV *or* Plaid Sandbox), sign-normalized once at ingestion, pre-categorized at provision time, holding to the idempotency and integer-cents guardrails.
+- **FR-12.3** — A visible demo indicator reflecting the **demo kind** ("CSV Demo" / "Plaid Demo") and a demo flag + kind on the user record; sign-out/exit supported.
+- **FR-12.8** — **Two demo flavors chosen at entry** (CSV vs Plaid open-banking): two landing/sign-in entries; the chosen kind is recorded and branches seeding; the CSV demo's Add-data flow defaults to the Generic CSV format with the bundled sample available. *(Story 12.3.)*
 - **FR-12.4** — Server-validated Turnstile bot challenge on demo-mint and NL-query, gating before any LLM call.
 - **FR-12.5** — Per-IP rate limits (Redis/Upstash) on demo creation and LLM-backed requests.
 - **FR-12.6** — Per-session quota of 10 NL queries with a friendly limit message on exceed.

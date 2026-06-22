@@ -104,49 +104,69 @@ function makeFakeAdapter(overrides: Partial<PlaidAdapter> = {}): PlaidAdapter {
   };
 }
 
-async function provisionWithFake(): ReturnType<typeof provisionDemoUser> {
-  const fake = makeFakeAdapter();
-  restorePlaid = setPlaidAdapterForTests(fake);
-  return provisionDemoUser({ plaidAdapter: fake });
+// CSV demo touches no Plaid path, so no adapter wiring is needed.
+function provisionCsv(): ReturnType<typeof provisionDemoUser> {
+  return provisionDemoUser({ kind: "csv" });
+}
+// Plaid demo: inject the fake into BOTH seams (provision option + the accounts
+// module global used by the reused exchangePlaidPublicToken).
+function provisionPlaid(adapter = makeFakeAdapter()): ReturnType<typeof provisionDemoUser> {
+  restorePlaid = setPlaidAdapterForTests(adapter);
+  return provisionDemoUser({ kind: "plaid", plaidAdapter: adapter });
 }
 
-describe.skipIf(!hasDb)("provisionDemoUser (Story 12.1)", () => {
-  it("creates an isDemo user with a 1h TTL, a synthetic email, and an unusable password (AC2, AC5)", async () => {
+describe.skipIf(!hasDb)("provisionDemoUser (Story 12.3 — kind-branched)", () => {
+  it("creates an isDemo user with a 1h TTL, synthetic email, unusable password, and demoKind (AC2)", async () => {
     const before = Date.now();
-    const demo = track(await provisionWithFake());
+    const demo = track(await provisionCsv());
     const after = Date.now();
 
     expect(demo.isDemo).toBe(true);
+    expect(demo.demoKind).toBe("csv");
     expect(demo.email).toMatch(/^demo\+[0-9a-f-]{36}@demo\.clarifi\.local$/);
 
     const row = await prisma.user.findUnique({
       where: { id: demo.id },
-      select: { isDemo: true, demoExpiresAt: true, passwordHash: true },
+      select: { isDemo: true, demoExpiresAt: true, passwordHash: true, demoKind: true },
     });
     expect(row?.isDemo).toBe(true);
+    expect(row?.demoKind).toBe("csv");
     expect(row?.passwordHash).toBeTruthy();
     const expiry = row?.demoExpiresAt?.getTime() ?? 0;
     expect(expiry).toBeGreaterThanOrEqual(before + 60 * 60 * 1000 - 1000);
     expect(expiry).toBeLessThanOrEqual(after + 60 * 60 * 1000 + 1000);
   });
 
-  it("seeds through BOTH canonical adapters and requests categorization, never an inline LLM call (AC3, AC4)", async () => {
-    const demo = track(await provisionWithFake());
-    expect(demo.plaidSeeded).toBe(true);
+  it("CSV demo seeds ONLY CSV (no Plaid) and requests categorization, never an inline LLM call (AC3, AC4)", async () => {
+    const demo = track(await provisionCsv());
 
-    const accounts = await withUserContext(demo.id, (tx) =>
-      tx.account.findMany({ select: { provider: true } }),
+    const csv = await withUserContext(demo.id, (tx) =>
+      tx.account.count({ where: { provider: Provider.csv } }),
     );
-    const providers = accounts.map((a) => a.provider).sort();
-    expect(providers).toContain(Provider.csv);
-    expect(providers).toContain(Provider.plaid);
-
-    // AC4: categorization was enqueued (CSV import + per Plaid account), not run inline.
+    const plaid = await withUserContext(demo.id, (tx) =>
+      tx.account.count({ where: { provider: Provider.plaid } }),
+    );
+    expect(csv).toBe(1);
+    expect(plaid).toBe(0);
     expect(mocks.requestCategorization).toHaveBeenCalled();
   });
 
-  it("stores seeded money as integer cents, signed from the user's perspective (AC3, AC6)", async () => {
-    const demo = track(await provisionWithFake());
+  it("Plaid demo seeds ONLY Plaid (no CSV) with demoKind=plaid (AC3)", async () => {
+    const demo = track(await provisionPlaid());
+    expect(demo.demoKind).toBe("plaid");
+
+    const csv = await withUserContext(demo.id, (tx) =>
+      tx.account.count({ where: { provider: Provider.csv } }),
+    );
+    const plaid = await withUserContext(demo.id, (tx) =>
+      tx.account.count({ where: { provider: Provider.plaid } }),
+    );
+    expect(plaid).toBeGreaterThan(0);
+    expect(csv).toBe(0);
+  });
+
+  it("CSV demo stores money as integer cents, signed from the user's perspective (AC3)", async () => {
+    const demo = track(await provisionCsv());
 
     const payroll = await withUserContext(demo.id, (tx) =>
       tx.transaction.findFirst({
@@ -165,9 +185,9 @@ describe.skipIf(!hasDb)("provisionDemoUser (Story 12.1)", () => {
     expect(loblaws?.amountCents).toBe(-9240n); //  -$92.40 outflow
   });
 
-  it("isolates demo users from each other under RLS (AC2)", async () => {
-    const a = track(await provisionWithFake());
-    const b = track(await provisionWithFake());
+  it("isolates demo users from each other under RLS (AC3)", async () => {
+    const a = track(await provisionCsv());
+    const b = track(await provisionCsv());
 
     const aTxns = await withUserContext(a.id, (tx) =>
       tx.transaction.findMany({ select: { userId: true } }),
@@ -175,22 +195,21 @@ describe.skipIf(!hasDb)("provisionDemoUser (Story 12.1)", () => {
     expect(aTxns.length).toBeGreaterThan(0);
     expect(aTxns.every((t) => t.userId === a.id)).toBe(true);
 
-    // Under A's context, B's rows are invisible — even by explicit userId filter.
     const aSeesB = await withUserContext(a.id, (tx) =>
       tx.transaction.count({ where: { userId: b.id } }),
     );
     expect(aSeesB).toBe(0);
   });
 
-  it("does not let a demo user sign in with a password (AC2/AC5)", async () => {
-    const demo = track(await provisionWithFake());
+  it("does not let a demo user sign in with a password", async () => {
+    const demo = track(await provisionCsv());
     await expect(loginUser({ email: demo.email, password: "anything-at-all" })).rejects.toMatchObject({
       code: "INVALID_CREDENTIALS",
     });
   });
 
-  it("re-importing the same seed statement is idempotent — no duplicate rows (AC6)", async () => {
-    const demo = track(await provisionWithFake());
+  it("re-importing the same seed statement is idempotent — no duplicate rows", async () => {
+    const demo = track(await provisionCsv());
     const again = await importCsv({
       userId: demo.id,
       bankFormat: "generic",
@@ -201,23 +220,21 @@ describe.skipIf(!hasDb)("provisionDemoUser (Story 12.1)", () => {
     expect(again.duplicatesSkipped).toBeGreaterThan(0);
   });
 
-  it("falls back to CSV-only when the Plaid Sandbox seed fails (degradation, no 500)", async () => {
+  it("Plaid demo returns 503 (no CSV fallback, no orphan user) when the Plaid seed fails", async () => {
     const fake = makeFakeAdapter({
       createSandboxPublicToken: async () => {
         throw new Error("plaid sandbox unavailable");
       },
     });
     restorePlaid = setPlaidAdapterForTests(fake);
-    const demo = track(await provisionDemoUser({ plaidAdapter: fake }));
 
-    expect(demo.plaidSeeded).toBe(false);
-    const csvAccounts = await withUserContext(demo.id, (tx) =>
-      tx.account.count({ where: { provider: Provider.csv } }),
-    );
-    const plaidAccounts = await withUserContext(demo.id, (tx) =>
-      tx.account.count({ where: { provider: Provider.plaid } }),
-    );
-    expect(csvAccounts).toBe(1);
-    expect(plaidAccounts).toBe(0);
+    const demosBefore = await prisma.user.count({ where: { isDemo: true, demoKind: "plaid" } });
+    await expect(provisionDemoUser({ kind: "plaid", plaidAdapter: fake })).rejects.toMatchObject({
+      code: "PLAID_DEMO_UNAVAILABLE",
+      httpStatus: 503,
+    });
+    // The just-created empty user was deleted before throwing — no orphan.
+    const demosAfter = await prisma.user.count({ where: { isDemo: true, demoKind: "plaid" } });
+    expect(demosAfter).toBe(demosBefore);
   });
 });

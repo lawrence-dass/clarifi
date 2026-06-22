@@ -1,6 +1,7 @@
 import { randomBytes, randomUUID } from "node:crypto";
 import argon2 from "argon2";
-import { prisma, withUserContext } from "@clarifi/shared";
+import { DemoKind, prisma, withUserContext } from "@clarifi/shared";
+import { serviceUnavailable } from "../../lib/app-error.js";
 import { importCsv } from "../ingestion/ingestion.service.js";
 import { exchangePlaidPublicToken } from "../accounts/accounts.service.js";
 import { processPlaidSyncJob } from "../../workers/plaid-sync.worker.js";
@@ -13,6 +14,8 @@ export const DEMO_TTL_MS = 60 * 60 * 1000;
 const DEMO_INSTITUTION = "Clarifi Demo Bank";
 
 export interface ProvisionDemoOptions {
+  /** Which single source to seed — "csv" (CAD sample) or "plaid" (Sandbox). */
+  kind: DemoKind;
   /**
    * Adapter used for the Plaid **Sandbox** seed (createSandboxPublicToken + the
    * sync). Defaults to the real singleton. Tests inject a fake; pair it with
@@ -27,13 +30,14 @@ export interface ProvisionedDemoUser {
   email: string;
   consentedAt: Date;
   isDemo: true;
-  /** Whether the Plaid Sandbox seed succeeded (false → CSV-only degradation). */
-  plaidSeeded: boolean;
+  demoKind: DemoKind;
 }
 
 /**
  * Provision a fresh anonymous demo user and seed it with realistic synthetic
- * data through the **canonical ingestion adapters** (Story 12.1).
+ * data through the **canonical ingestion adapters** (Story 12.1), from the
+ * **single source matching `kind`** (Story 12.3 — one flavor per demo, so the
+ * experience stays coherent and currency-consistent).
  *
  * The user row is created with the base `prisma` client — the same sanctioned
  * pre-auth exception registration uses: there is no `app.current_user_id` yet,
@@ -42,13 +46,14 @@ export interface ProvisionedDemoUser {
  * the reused services, so a demo user's data is isolated from all other users,
  * including other concurrent demo visitors.
  *
- * Privacy (PIPEDA): a demo user holds synthetic data only (bundled sample CSV +
+ * Privacy (PIPEDA): a demo user holds synthetic data only (bundled sample CSV or
  * Plaid Sandbox), so there is no real personal information and no signup-consent
  * step is required. `demoExpiresAt` is written here for the 12.2 TTL reaper.
  */
 export async function provisionDemoUser(
-  options: ProvisionDemoOptions = {},
+  options: ProvisionDemoOptions,
 ): Promise<ProvisionedDemoUser> {
+  const { kind } = options;
   const adapter = options.plaidAdapter ?? plaidAdapter;
 
   // A valid argon2 PHC string over a random secret: keeps `password_hash` NOT
@@ -64,30 +69,35 @@ export async function provisionDemoUser(
       consentedAt: new Date(now),
       isDemo: true,
       demoExpiresAt: new Date(now + DEMO_TTL_MS),
+      demoKind: kind,
     },
     select: { id: true, email: true, consentedAt: true },
   });
 
-  // CSV seed (hard requirement). importCsv owns sign normalization, the
-  // idempotent (account, providerTransactionId) upsert, and the categorize
-  // enqueue — AC4's "pre-categorized at provision time" is satisfied by reuse.
-  await importCsv({
-    userId: user.id,
-    bankFormat: "generic",
-    institution: DEMO_INSTITUTION,
-    csv: DEMO_SEED_CSV,
-  });
-
-  // Plaid Sandbox seed (best-effort). If Plaid is unconfigured or the sandbox
-  // call fails, the demo must still succeed with CSV-only data — never 500.
-  let plaidSeeded = false;
-  try {
-    plaidSeeded = await seedPlaidSandbox(user.id, adapter);
-  } catch {
-    plaidSeeded = false;
+  if (kind === DemoKind.csv) {
+    // CSV seed. importCsv owns sign normalization, the idempotent
+    // (account, providerTransactionId) upsert, and the categorize enqueue.
+    await importCsv({
+      userId: user.id,
+      bankFormat: "generic",
+      institution: DEMO_INSTITUTION,
+      csv: DEMO_SEED_CSV,
+    });
+  } else {
+    // Plaid demo seeds ONLY Plaid Sandbox — no CSV fallback, so the kind contract
+    // stays honest. If Plaid can't seed, delete the just-created (empty) user so
+    // we don't leave an orphan, and surface 503.
+    const seeded = await seedPlaidSandbox(user.id, adapter).catch(() => false);
+    if (!seeded) {
+      await withUserContext(user.id, (tx) => tx.user.delete({ where: { id: user.id } })).catch(() => {});
+      throw serviceUnavailable(
+        "PLAID_DEMO_UNAVAILABLE",
+        "The Plaid demo is temporarily unavailable — try the sample CSV demo.",
+      );
+    }
   }
 
-  return { id: user.id, email: user.email, consentedAt: user.consentedAt, isDemo: true, plaidSeeded };
+  return { id: user.id, email: user.email, consentedAt: user.consentedAt, isDemo: true, demoKind: kind };
 }
 
 /**

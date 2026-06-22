@@ -6,7 +6,12 @@ import { useRouter } from "next/navigation";
 import { ErrorState } from "@/components/error-state";
 import { Button } from "@/components/ui/button";
 import { apiClient } from "@/lib/api-client";
-import type { PublicUser } from "@/lib/auth";
+import type { DemoKind, PublicUser } from "@/lib/auth";
+
+const LABELS: Record<DemoKind, string> = {
+  csv: "Demo with sample CSV",
+  plaid: "Demo with Plaid (open banking)",
+};
 
 // Public Turnstile site key. Unset → no widget is rendered and the server-side
 // bot-gate bypasses too (dev/CI parity). Set → a challenge must pass before mint.
@@ -41,7 +46,13 @@ declare global {
  * server-side before any provisioning. With no site key, the button behaves
  * exactly as before (the server bypasses the gate in dev/CI).
  */
-export function TryDemoButton({ fullWidth = false }: { fullWidth?: boolean }) {
+export function TryDemoButton({
+  kind,
+  fullWidth = false,
+}: {
+  kind: DemoKind;
+  fullWidth?: boolean;
+}) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const widgetRef = useRef<HTMLDivElement | null>(null);
@@ -90,6 +101,7 @@ export function TryDemoButton({ fullWidth = false }: { fullWidth?: boolean }) {
     mutationFn: () =>
       apiClient<PublicUser>("/demo/session", {
         method: "POST",
+        body: { kind },
         headers: SITE_KEY && token ? { [TOKEN_HEADER]: token } : undefined,
       }),
     onSuccess: (user) => {
@@ -118,7 +130,7 @@ export function TryDemoButton({ fullWidth = false }: { fullWidth?: boolean }) {
         disabled={disabled}
         className={fullWidth ? "w-full" : undefined}
       >
-        {demo.isPending ? "Preparing your demo…" : "Try the live demo"}
+        {demo.isPending ? "Preparing your demo…" : LABELS[kind]}
       </Button>
       {demo.isError ? (
         <div className="mt-2">

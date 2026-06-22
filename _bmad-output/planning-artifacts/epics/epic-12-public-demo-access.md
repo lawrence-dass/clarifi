@@ -54,3 +54,24 @@ So that automated traffic can't run up my Claude/compute bill.
 **And** each demo session carries a **per-session quota** on LLM-spending actions (e.g. a capped number of NL queries); exceeding it returns a clear, friendly limit message rather than continuing to spend
 **And** a **TTL reaper** removes expired demo users and all their data end-to-end via the existing PIPEDA deletion path (no orphaned rows; deletion guarantees from Story 1.6 hold)
 **And** none of these controls affect normal authenticated (non-demo) users; rate-limit and quota behaviour is covered by tests; typecheck passes.
+
+## Story 12.3: Two demo flavors (CSV vs Plaid open-banking)
+
+As a prospective reviewer,
+I want to choose whether I'm trying the CSV-import demo or the Plaid open-banking demo,
+So that each demo tells one clear story and isn't a muddled CAD/USD mix of both sources.
+
+> Builds on 12.1 (provisioning) + 12.2 (mint controls). Refines, not replaces:
+> the single "seed both" provisioning becomes **kind-branched** (one source each).
+
+**Acceptance Criteria:**
+
+**Given** the landing/sign-in surfaces
+**When** the visitor chooses a demo
+**Then** two entries are offered — **"Demo with sample CSV"** and **"Demo with Plaid (open banking)"** — and the choice is sent to the mint endpoint as a validated `kind` (`csv` | `plaid`)
+**And** the demo user record records its **`demoKind`**, set at provision time
+**And** provisioning **seeds only the source matching the kind** — the bundled CAD sample CSV for `csv`, or Plaid **Sandbox** for `plaid` — through the canonical adapters, sign-normalized once, pre-categorized, holding the idempotency + integer-cents guardrails (no cross-currency mixing within a demo)
+**And** the UI badge reflects the kind — **"CSV Demo"** / **"Plaid Demo"** — and `demoKind` is surfaced to the client
+**And** in the **CSV demo**, the "+ Add data" flow defaults to the **Generic CSV** format with the bundled sample available to import
+**And** 12.2's Turnstile + per-IP rate limit + per-session quota + TTL reaper continue to apply unchanged to both kinds
+**And** typecheck and DB-backed tests pass.
