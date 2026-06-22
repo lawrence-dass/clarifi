@@ -20,7 +20,7 @@ guardrail_surfaces:
 
 # Story 12.3: Two Demo Flavors (CSV vs Plaid Open-Banking)
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
