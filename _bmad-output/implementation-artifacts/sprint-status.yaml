@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-06-15
-last_updated: 2026-06-22 (story 12.2 created → ready-for-dev; Epic 12 in-progress)
+last_updated: 2026-06-22 (story 12.2 done → merged to main; 12.3 split planned; Epic 12 in-progress)
 project: Clarifi
 project_key: NOKEY
 tracking_system: file-system
@@ -141,5 +141,5 @@ development_status:
   # Epic 12: Public Demo Access
   epic-12: in-progress
   12-1-one-click-ephemeral-demo-session: done
-  12-2-demo-abuse-and-cost-controls: review
+  12-2-demo-abuse-and-cost-controls: done
   epic-12-retrospective: optional
