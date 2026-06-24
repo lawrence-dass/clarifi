@@ -139,9 +139,9 @@ development_status:
   epic-11-retrospective: optional
 
   # Epic 12: Public Demo Access
-  epic-12: in-progress
+  epic-12: done
   12-1-one-click-ephemeral-demo-session: done
   12-2-demo-abuse-and-cost-controls: done
   12-3-two-demo-flavors: done
-  12-4-synchronous-demo-seeding: ready-for-dev
+  12-4-synchronous-demo-seeding: done
   epic-12-retrospective: optional

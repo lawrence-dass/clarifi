@@ -12,7 +12,7 @@ guardrail_surfaces:
 
 # Story 12.4: Fully-Loaded Demo (Synchronous Seeding)
 
-Status: review
+Status: done
 
 ## Story
 
